@@ -13,6 +13,14 @@ import (
 	"database/sql"
 )
 
+func connectDatabase() *sql.DB {
+	conn, err := sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
+	return conn
+}
+
 func log(logLevel AWSDebugLevel, processName string, message string) {
 	_, error := db.Exec(
 		"insert into AWSLogTable"

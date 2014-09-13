@@ -24,7 +24,7 @@ func main() {
 	fmt.Println("Arguments:", os.Args)
 
 	if len(os.Args) <= 1 {
-		fmt.Println("Error: Run options expected.")
+		fmt.Println("Error: Run command expected.")
 		printUsage()
 		os.Exit(1)
 	}
@@ -52,10 +52,11 @@ func main() {
 		case "log":
 			printLog()
 			
-//		case "history":
-//			printHistory()
+		case "history":
+			printHistory()
 			
 		case "status":
+			printStatus()
 		}
 			
 /*	if len(flag.Args()) != 0 {
@@ -72,7 +73,7 @@ func main() {
 
 
 func printUsage() {
-    fmt.Fprintf(os.Stderr, "usage: aws-bu [ help | bundles | log | history | stats ] [ <options> ]\n\noptions:\n")
+    fmt.Fprintf(os.Stderr, "usage: aws-bu [ help | bundles | log | history | status | report ] [ <options> ]\n\noptions:\n")
     flag.PrintDefaults()
 }
 
@@ -149,6 +150,11 @@ func printHistory() {
 */}
 
 
+func printStatus() {
+	fmt.Printf("printStatus");
+}
+
+
 func connectDatabase() *sql.DB {
 	conn, err := sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
 	if err != nil {
@@ -156,3 +162,5 @@ func connectDatabase() *sql.DB {
 	}
 	return conn
 }
+
+
