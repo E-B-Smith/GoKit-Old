@@ -3,164 +3,121 @@ package main
 import (
 	"os"
 	"fmt"
-	"strconv"	
 	"flag"
 	"time"
-	"bytes"
+	"strings"
 	_ "github.com/lib/pq"
 	"database/sql"
 )
 
+type AWSLogLevel string
+const (
+	AWSLogDebug   = "AWSLogDebug"
+	AWSLogInfo	  = "AWSLogInfo"
+	AWSLogStart   = "AWSLogStart"
+	AWSLogExit    = "AWSLogExit"
+	AWSLogWarning = "AWSLogWarning"
+	AWSLogError   = "AWSLogError"
+)
+
+var database *sql.DB;
+var command = "aws-bu";
+ 
+func log(logLevel AWSLogLevel, format string, args ...interface{}) {
+
+	var message = fmt.Sprintf(format, args...);
+	var terminalMessage = fmt.Sprintf("%13s: %s", logLevel, message)
+	fmt.Println(terminalMessage)
+
+	var sqlCommand string =
+		fmt.Sprintf(
+			`insert into AWSLogTable
+					(time, processname, level, pid, message)
+			values	(to_timestamp(%d), '%s', '%s'::AWSLogLevel, %d, '%s');`,
+			time.Now().UTC().Unix(), command, logLevel, os.Getpid(), strings.Replace(message, "'", "''", -1));
+
+	_, error := database.Exec(sqlCommand);
+	if error != nil {
+		fmt.Printf("Error while logging: %v.\n", error);
+		fmt.Printf("Error while logging:\n%v.\n", sqlCommand);
+		os.Exit(1);
+	}
+}
+
+func printUsage() int {
+    fmt.Fprintf(os.Stderr, "Usage: aws-bu [ help | list | log | history | status | report ] [ <options> ]\n\noptions:\n")
+    flag.PrintDefaults()
+    return 0
+	}
 
 var (
 	flagReverseSort bool = false
 	flagFollowOutput bool = false
 	flagOutputLimit int = 0
-)
-
+	)
 
 func main() {
-
-	fmt.Println("Arguments:", os.Args)
+	var error error;
+	database, error = sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
+	if error != nil {
+		fmt.Printf("Error: Can't open database connection: %v.\n", error);
+		os.Exit(1)
+	}
+	
+	log(AWSLogDebug, "Arguments: %v.", os.Args);
 
 	if len(os.Args) <= 1 {
-		fmt.Println("Error: Run command expected.")
-		printUsage()
+		fmt.Printf("Error: aws-bu command expected.  Try 'aws-bu help' for help.\n")
 		os.Exit(1)
 	}
 
-	var command string = os.Args[1]
-	fmt.Println("Command:", command)
+	rawCommand := os.Args[1];
+	command = strings.Title(rawCommand)
+	log(AWSLogDebug, "Command: %v.", command)
 	os.Args = os.Args[1:]
 
+	var status int = 0;
+	defer func() {
+		log(AWSLogExit, "Exit status %d.", status)
+		database.Close()
+		os.Exit(status)
+		} ()	
+	
 	flag.BoolVar(&flagReverseSort, "r", false, "Reverse output sort.")
 	flag.BoolVar(&flagFollowOutput, "f", false, "Follow output.")
-	flag.IntVar(&flagOutputLimit, "n", 0, "Number of lines to output. Set to zero to output all lines.")
+	flag.IntVar(&flagOutputLimit, "n", 0, "Number of lines to output. A zero value reports all lines.")
 	flag.Parse()
 
 	fmt.Println("Reverse:", flagReverseSort, "\t|")
 	fmt.Println(" Follow:", flagFollowOutput, "\t|")
 	fmt.Println("  Limit:", flagOutputLimit, "\t|")
 
-	switch command {
+	log(AWSLogStart, "Start %s.", strings.Trim(fmt.Sprint(os.Args), "[]"))
+
+	switch rawCommand {
 		case "help", "-h":
-			printUsage()
+			status = printUsage()
 						
-		case "bundles":
-			listBundles()
+		case "list":
+			status = listBundles()
 			
 		case "log":
-			printLog()
+			status = printLog()
 			
 		case "history":
-			printHistory()
+			status = printHistory()
 			
 		case "status":
-			printStatus()
-		}
+			status = printStatus()
+		
+		case "report":
+			status = printReport()
 			
-/*	if len(flag.Args()) != 0 {
-		fmt.Println("Error: Invalid command line argument '"+flag.Arg(0)+"'.")
-		os.Exit(1)
-	}
-
-
-	printUsage()
-	listBundles()
-	printLog()
-*/
+		default:
+			fmt.Printf("Error: Unrecognized command '%v'.\n", rawCommand)
+			status = 1
+		}
+	
+	//	The end.
 }
-
-
-func printUsage() {
-    fmt.Fprintf(os.Stderr, "usage: aws-bu [ help | bundles | log | history | status | report ] [ <options> ]\n\noptions:\n")
-    flag.PrintDefaults()
-}
-
-
-func listBundles() {
-	db := connectDatabase()
-	rows, err := db.Query("select bundle from awsobjecttabletotals;")
-	if err != nil {
-		panic(err)
-	}
-	var bundleName string
-	for rows.Next() {
-		rows.Scan(&bundleName)
-		fmt.Println(bundleName)
-	}
-}
-
-
-func printLog() {
-	db := connectDatabase()
-
-	var queryBuffer bytes.Buffer
-	queryBuffer.WriteString("select time, processname, level, message from awslogtable")
-		
-	if flagReverseSort {
-		queryBuffer.WriteString(" order by entry desc")
-	}
-	
-	if flagOutputLimit != 0 {
-		queryBuffer.WriteString(" limit ")
-		queryBuffer.WriteString(strconv.Itoa(flagOutputLimit))
-	}
-	
-	queryBuffer.WriteString(";")
-	
-	rows, err := db.Query(queryBuffer.String())
-	if err != nil {
-		panic(err)
-	}
-	
-	var timestamp time.Time
-	var processname string
-	var level string
-	var message string
-	for rows.Next() {
-		rows.Scan(&timestamp, &processname, &level, &message)
-		fmt.Printf("%s  %-12s %-12s: %s\n", timestamp, processname, level, message)
-	}
-}
-	
-
-func printHistory() {
-	fmt.Printf("printHistory");
-/*	db := connectDatabase()
-
-	var queryBuffer bytes.Buffer
-	queryBuffer.WriteString("select time, processname, level, message from awslogtable")
-		
-	if flagReverseSort {
-		queryBuffer.WriteString(" order by entry desc")
-	}
-	
-	if flagOutputLimit != 0 {
-		queryBuffer.WriteString(" limit ")
-		queryBuffer.WriteString(strconv.Itoa(flagOutputLimit))
-	}
-	
-	queryBuffer.WriteString(";")
-	
-/*	rows, err := db.Query(queryBuffer.String())
-	if err != nil {
-		panic(err)
-	}
-*/}
-
-
-func printStatus() {
-	fmt.Printf("printStatus");
-}
-
-
-func connectDatabase() *sql.DB {
-	conn, err := sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
-	if err != nil {
-		panic(err)
-	}
-	return conn
-}
-
 
