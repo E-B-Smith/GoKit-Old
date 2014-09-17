@@ -16,7 +16,7 @@ func printReport() int {
 		return 1;
 	}
 
-	fmt.Println(result);
+	fmt.Println(rows);
 
 	// var timestamp time.Time
 	// var processname string

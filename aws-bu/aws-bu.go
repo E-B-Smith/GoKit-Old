@@ -19,6 +19,10 @@ const (
 	AWSLogWarning = "AWSLogWarning"
 	AWSLogError   = "AWSLogError"
 )
+const (
+	kResultSuccess 	= 0
+	kResultError	= 1
+)
 
 var database *sql.DB;
 var command = "aws-bu";
@@ -112,6 +116,9 @@ func main() {
 		
 		case "report":
 			status = printReport()
+		
+		case "install":
+			status = install()
 			
 		default:
 			fmt.Printf("Error: Unrecognized command '%v'.\n", rawCommand)
