@@ -7,36 +7,36 @@ import (
 //	"flag"
 	"time"
 	"bytes"
-)
+	)
 
 
-func listBundles() int {
+func listBundles() AWSResultCode {
 	rows, err := database.Query("select bundle from awsobjecttabletotals;")
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1
-	}
+		}
 	var bundleName string
 	for rows.Next() {
 		rows.Scan(&bundleName)
 		fmt.Println(bundleName)
-	}
+		}
 	return 0
-}
+	}
 
 
-func printLog() int {
+func printLog() AWSResultCode {
 	var queryBuffer bytes.Buffer
 	queryBuffer.WriteString("select time, processname, level, message from awslogtable")
 		
 	if flagReverseSort {
 		queryBuffer.WriteString(" order by entry desc")
-	}
+		}
 	
 	if flagOutputLimit != 0 {
 		queryBuffer.WriteString(" limit ")
 		queryBuffer.WriteString(strconv.Itoa(flagOutputLimit))
-	}
+		}
 	
 	queryBuffer.WriteString(";")
 	
@@ -44,7 +44,7 @@ func printLog() int {
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1;
-	}
+		}
 	
 	var timestamp time.Time
 	var processname string
@@ -53,25 +53,25 @@ func printLog() int {
 	for rows.Next() {
 		rows.Scan(&timestamp, &processname, &level, &message)
 		fmt.Printf("%s  %-12s %-12s: %s\n", timestamp, processname, level, message)
-	}
+		}
 	
 	return 0
-}
+	}
 
 
-func printHistory() int {
+func printHistory() AWSResultCode {
 	var queryBuffer bytes.Buffer
 	queryBuffer.WriteString("select time, processname, level, message from awslogtable ")
 	queryBuffer.WriteString("where level='AWSLogStart'::AWSLogLevel or level='AWSLogExit'::AWSLogLevel ")
 
 	if flagReverseSort {
 		queryBuffer.WriteString("order by entry desc ")
-	}
+		}
 	
 	if flagOutputLimit != 0 {
 		queryBuffer.WriteString("limit ")
 		queryBuffer.WriteString(strconv.Itoa(flagOutputLimit))
-	}
+		}
 	
 	queryBuffer.WriteString(";")
 	
@@ -81,7 +81,7 @@ func printHistory() int {
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1;
-	}
+		}
 	
 	var timestamp time.Time
 	var processname string
@@ -90,14 +90,14 @@ func printHistory() int {
 	for rows.Next() {
 		rows.Scan(&timestamp, &processname, &level, &message)
 		fmt.Printf("%s  %-12s %-12s: %s\n", timestamp, processname, level, message)
-	}
+		}
 	
 	return 0
-}
+	}
 
 
-func printStatus() int {
-	fmt.Printf("printStatus");
+func printStatus() AWSResultCode {
+	fmt.Printf("printStatus.\n");
 	return 0
-}
+	}
 

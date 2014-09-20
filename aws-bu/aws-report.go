@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"bytes"
-)
+	)
 
 
-func printReport() int {
+func printReport() AWSResultCode {
 	var queryBuffer bytes.Buffer
 	queryBuffer.WriteString("select * from awsobjecttabletotals;")
 	
@@ -14,7 +14,7 @@ func printReport() int {
 	if error != nil {
 		log(AWSLogError, "Database error: %v.", error)
 		return 1;
-	}
+		}
 
 	fmt.Println(rows);
 
@@ -28,4 +28,4 @@ func printReport() int {
 	// }
 	
 	return 0
-}
+	}
