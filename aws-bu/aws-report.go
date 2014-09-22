@@ -10,7 +10,7 @@ func printReport() AWSResultCode {
 	var queryBuffer bytes.Buffer
 	queryBuffer.WriteString("select * from awsobjecttabletotals;")
 	
-	rows, error := database.Query(queryBuffer.String())
+	rows, error := globalDatabase.Query(queryBuffer.String())
 	if error != nil {
 		log(AWSLogError, "Database error: %v.", error)
 		return 1;

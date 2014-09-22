@@ -11,7 +11,7 @@ import (
 
 
 func listBundles() AWSResultCode {
-	rows, err := database.Query("select bundle from awsobjecttabletotals;")
+	rows, err := globalDatabase.Query("select bundle from awsobjecttabletotals;")
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1
@@ -40,7 +40,7 @@ func printLog() AWSResultCode {
 	
 	queryBuffer.WriteString(";")
 	
-	rows, err := database.Query(queryBuffer.String())
+	rows, err := globalDatabase.Query(queryBuffer.String())
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1;
@@ -77,7 +77,7 @@ func printHistory() AWSResultCode {
 	
 	log(AWSLogDebug, "History query string: %s.", queryBuffer.String())
 
-	rows, err := database.Query(queryBuffer.String())
+	rows, err := globalDatabase.Query(queryBuffer.String())
 	if err != nil {
 		log(AWSLogError, "Database error: %v.", err)
 		return 1;

@@ -24,7 +24,7 @@ func runSQLScript(scriptname string) AWSResultCode {
 		"-v", "ON_ERROR_STOP=1",
 		"--pset", "pager=off",
 		}
-	command := exec.Command(psqlpath, psqlOptions...)
+	command := exec.Command(globalPSQLPath, psqlOptions...)
 	command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
 	commandpipe, error := command.StdinPipe()
 	if error != nil {
