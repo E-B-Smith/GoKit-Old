@@ -12,12 +12,25 @@ func refreshData() AWSResultCode {
 
 	//  refresh  -adl  [ <bundle-name> ]
 
- 	writer, error := os.Create("./TestData/TestBackup.data")
+ 	writer, error := os.Create("./TestData/TestBackup.ldata")
     if error != nil {
     	log(AWSLogError, "Can't open temporary file: %v.", error);
         return AWSResultError;
     	}
-	result := writeBundleStatusFile(writer, "./TestData/TestBackup.sparsebundle")
+
+	workingDirectory, _ := os.Getwd()
+	os.Chdir("./TestData")
+	result := writeBundleStatusFile(writer, "TestBackup.sparsebundle")
+	os.Chdir(workingDirectory)
+	writer.Close()
+
+ 	writer, error = os.Create("./TestData/TestBackup.adata")
+    if error != nil {
+    	log(AWSLogError, "Can't open temporary file: %v.", error);
+        return AWSResultError;
+    	}
+//	result = writeAWSStatusFile(writer, "TestBackup.sparsebundle")
+	result = writeAWSStatusFile(writer, "Brennos.sparsebundle")
 	writer.Close()
 
 	return result
@@ -31,7 +44,6 @@ func writeBundleStatusFile(writer io.Writer, directory string) AWSResultCode {
 		log(AWSLogError, "Error reading %s: %v.", directory, error)
 		return AWSResultError
 		}
-
 
 	for _, file := range filearray {
 		path := directory + "/" + file.Name();
@@ -47,8 +59,9 @@ func writeBundleStatusFile(writer io.Writer, directory string) AWSResultCode {
 	}
 
 
-func writeAWSStatusFile(writer io.Writer, directory string) AWSResultCode {
-	return AWSResultError
+func writeAWSStatusFile(writer io.Writer, path string) AWSResultCode {
+	listAWSObjectsWithPrefixAndMarker(writer, path, "")
+	return AWSResultSuccess
 	}
 
 	

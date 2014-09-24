@@ -23,9 +23,10 @@ const kSchemaVersion = "1.00.001"
 
 var globalDatabase *sql.DB = nil
 var globalPSQLPath string
-var globalAWSBackupBucket string = ""
+var globalAWSBackupBucket string = "rookery.backup"
 var globalAWSAccessKeyID  string = "AKIAIUDYX3CQOEGT4OXQ"
 var globalAWSAccessSecret string = "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"
+var globalAWSRegion 	  string = "us-west-2"
 
 type AWSParameters struct {
 	schemaVersion string

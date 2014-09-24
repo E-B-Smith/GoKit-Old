@@ -1,9 +1,11 @@
 package main
 
 import (
+	"io"
 	"time"
 	"net/http"
 	"net/url"
+	"crypto/tls"
     "crypto/hmac"
     "crypto/sha1"
     "encoding/base64"
@@ -39,6 +41,11 @@ function uploadFileOfSizeToAWS()
 */
 
 
+func RFC8222StringFromDate(t time.Time) string {
+	return t.Format("Mon, 2 Jan 2006 15:04:05 -0700")
+	}
+
+
 func AWSSignatureForString(string string) string {
     key := []byte(globalAWSAccessSecret)
     h := hmac.New(sha1.New, key)
@@ -47,11 +54,11 @@ func AWSSignatureForString(string string) string {
 	}
 
 
-func listAWSObjectsWithPrefixAndMarkerToFile(prefix string, marker string, filepath string) {
+func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker string) {
 	var query string = ""
 
 	if len(prefix) > 0 {
-		query += url.QueryEscape(prefix)
+		query += "prefix=" + url.QueryEscape(prefix)
 		}
 
 	if len(marker) > 0 {
@@ -63,10 +70,15 @@ func listAWSObjectsWithPrefixAndMarkerToFile(prefix string, marker string, filep
 
 	query = "?" + query
 //	var resource string = "/" + globalAWSBackupBucket + "/" + query;
-	dateString   := time.Now().Format(time.RFC822Z);
+	dateString   := RFC8222StringFromDate(time.Now())
 	stringToSign := "GET\n\n\n" + dateString + "\n/" + globalAWSBackupBucket + "/"
 	signature    := AWSSignatureForString(stringToSign);
 	urlString    := "https://" + globalAWSBackupBucket + ".s3.amazonaws.com/" + query
+
+	log(AWSLogDebug, "     Date: %v.", dateString)
+	log(AWSLogDebug, "   String: %v.", stringToSign)
+	log(AWSLogDebug, "Signature: %v.", signature)
+	log(AWSLogDebug, "      URL: %v.", urlString)
 
 	//	ToDo: Add retries --
 
@@ -75,9 +87,22 @@ func listAWSObjectsWithPrefixAndMarkerToFile(prefix string, marker string, filep
 	request.Header.Add("Date", dateString)
 	request.Header.Add("Authorization", "AWS " + globalAWSAccessKeyID + ":" + signature)
 
-	client := &http.Client{ Timeout:30.0 }
+	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
+	client := &http.Client{ Timeout:time.Minute*2.0, Transport: tr }
 	response, error := client.Do(request)
-	response.Body.Close()
+	if error == nil {
+		var n int
+		buffer := make([] byte, 10000)
+		n, error = response.Body.Read(buffer)
+		for n > 0 {
+			log(AWSLogDebug, "Read %d bytes.", n)
+			writer.Write(buffer[:n])
+			n, error = response.Body.Read(buffer)
+			}
+		response.Body.Close()
+		}
+
+	log(AWSLogError, "AWS GET error: %v.", error)
 
 //	response=$(
 //	curl -X GET --insecure \
