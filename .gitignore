@@ -1,0 +1,8 @@
+.LSOverride
+xcuserdata
+.DS_Store
+[Bb]uild
+*.xccheckout
+[Tt]arget
+*.o
+Search/Distribution/ipa-archive.log
