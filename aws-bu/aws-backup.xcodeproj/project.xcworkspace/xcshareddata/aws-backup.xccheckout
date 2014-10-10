@@ -14,11 +14,11 @@
 		<string>ssh://violent.blue/~/go.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
-	<string>aws-bu/aws-backup/aws-backup.xcodeproj</string>
+	<string>aws-bu/aws-backup.xcodeproj</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
 		<key>F7B2059752AEC773C47165879AAEECB870454361</key>
-		<string>../../../..</string>
+		<string>../../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
 	<string>ssh://violent.blue/~/go.git</string>

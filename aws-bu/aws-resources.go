@@ -238,9 +238,9 @@ type _bintree_t struct {
 }
 var _bintree = &_bintree_t{nil, map[string]*_bintree_t{
 	"aws-resources": &_bintree_t{nil, map[string]*_bintree_t{
-		"uninstall.sql": &_bintree_t{aws_resources_uninstall_sql, map[string]*_bintree_t{
-		}},
 		"install.sql": &_bintree_t{aws_resources_install_sql, map[string]*_bintree_t{
+		}},
+		"uninstall.sql": &_bintree_t{aws_resources_uninstall_sql, map[string]*_bintree_t{
 		}},
 	}},
 }}
