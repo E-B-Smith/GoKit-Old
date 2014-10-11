@@ -12,9 +12,13 @@ func refreshData() AWSResultCode {
 
 	//  refresh  -adl  [ <bundle-name> ]
 
+	//	Write local meta-data -- 
+
+	log(AWSLogDebug, "Writing local file meta-data.")
+
  	writer, error := os.Create("./TestData/TestBackup.ldata")
     if error != nil {
-    	log(AWSLogError, "Can't open temporary file: %v.", error);
+    	log(AWSLogError, "Can't open temporary file: %v.", error)
         return AWSResultError;
     	}
 
@@ -23,6 +27,10 @@ func refreshData() AWSResultCode {
 	result := writeBundleStatusFile(writer, "TestBackup.sparsebundle")
 	os.Chdir(workingDirectory)
 	writer.Close()
+
+	//	Write AWS meta-data -- 
+
+	log(AWSLogDebug, "Writing AWS file meta-data.")
 
  	writer, error = os.Create("./TestData/TestBackup.adata")
     if error != nil {
@@ -57,7 +65,6 @@ func writeBundleStatusFile(writer io.Writer, directory string) AWSResultCode {
 
 	return AWSResultSuccess
 	}
-
 
 func writeAWSStatusFile(writer io.Writer, path string) AWSResultCode {
 	listAWSObjectsWithPrefixAndMarker(writer, path, "")

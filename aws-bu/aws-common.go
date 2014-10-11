@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"	
-	"strings"
 	"time"
-	_ "github.com/lib/pq"
-	"database/sql"
+	"strings"
+	"database/sql"	
 	)
+
 
 type AWSResultCode int 
 const (
@@ -22,63 +21,17 @@ const (
 const kSchemaVersion = "1.00.001"
 
 var globalDatabase *sql.DB = nil
-var globalPSQLPath string
+var globalPGCTLPath       string
+var globalPSQLPath        string
+var globalPSQLDataPath    string = "~/Library/Application Support/Postgres/var-9.3"
 var globalAWSBackupBucket string = "rookery.backup"
 var globalAWSAccessKeyID  string = "AKIAIUDYX3CQOEGT4OXQ"
 var globalAWSAccessSecret string = "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"
 var globalAWSRegion 	  string = "us-west-2"
 
+
 type AWSParameters struct {
 	schemaVersion string
-	}
-
-
-func connectDatabase() AWSResultCode {
-
-	//	Find psql -- 
-	var error error
-	globalPSQLPath, error = exec.LookPath("psql")
-	if error != nil {
-		log(AWSLogError, "Can't find Postgres 'psql': %v.", error);
-		return AWSResultError;
-		}
-	log(AWSLogDebug, "psqlpath: %v.", globalPSQLPath)
-
-	//	Start the database -- 
-
-	//	Make a connection --
-	globalDatabase, error = sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
-	if error != nil {
-		globalDatabase = nil
-		log(AWSLogError, "Error: Can't open database connection: %v.", error);
-		return AWSResultError
-		}
-
-	//	Make sure a compatible schema is installed -- 
-	rows, error := globalDatabase.Query("select version from AWSParameterTable;")
-	if error != nil {
-		log(AWSLogError, "Error: Can't read database schema version: %v.", error);
-		disconnectDatabase()
-		return AWSResultNotInstalled
-		}
-	var version string
-	rows.Next()
-	rows.Scan(&version)
-	if version != kSchemaVersion {
-		log(AWSLogError, "Error: Uncompatible database schema version '%v'.  Expected '%v'.", version, kSchemaVersion);
-		disconnectDatabase()
-		return AWSResultNotInstalled
-		}	
-
-	return AWSResultSuccess
-	}
-
-
-func disconnectDatabase() {
-	if  globalDatabase != nil {
-		globalDatabase.Close()
-		globalDatabase = nil
-		}
 	}
 
 
@@ -92,14 +45,15 @@ const (
 	AWSLogError   = "AWSLogError"
 	)
 
-var loggingError bool = false
+
+var globalLoggingError bool = false
 
 func log(logLevel AWSLogLevel, format string, args ...interface{}) {
 
 	var message = fmt.Sprintf(format, args...)
 	fmt.Fprintf(os.Stderr, "%13s: %s\n", logLevel, message)
 
-	if  globalDatabase == nil || loggingError {
+	if  globalDatabase == nil || globalLoggingError {
 		return 
 		}
 
@@ -112,7 +66,7 @@ func log(logLevel AWSLogLevel, format string, args ...interface{}) {
 
 	_, error := globalDatabase.Exec(sqlCommand);
 	if error != nil {
-		loggingError = true
+		globalLoggingError = true
 		log(AWSLogError, "Error while logging: %v.", error)
 		}
 	}

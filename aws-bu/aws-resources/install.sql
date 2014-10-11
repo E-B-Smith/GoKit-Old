@@ -2,6 +2,7 @@
 drop database if exists AWSObjects;
 create database AWSObjects with encoding 'UTF8';
 
+
 drop type if exists AWSObjectState cascade;
 create type AWSObjectState as enum
 	(
@@ -66,6 +67,51 @@ create table AWSStatusTable
 
 drop index if exists AWSStatusPIDIndex;
 create index AWSStatusPIDIndex on AWSStatusTable(pid);
+
+
+
+-- Status load tables:
+
+
+
+drop table if exists AWSBulkLoadTable cascade;
+create table AWSBulkLoadTable
+	(
+	loadID		   serial primary key,
+	bucket         varchar(255) not null,
+	prefix		   varchar(512) not null,
+	isTruncated    bool         not null,
+	
+	constraint AWSBulkLoadTableUniqueConstraint
+		unique (bucket, prefix)
+	);
+
+
+drop table if exists AWSBulkLoadDataTable; 
+create table AWSBulkLoadDataTable
+	(
+	loadID			integer not null,
+	path 			varchar(512) not null,
+	mdate 			timestamptz not null,
+	state 			varchar(16) not null,
+	
+	constraint AWSBulkLoadDataTableKeyConstraint
+		foreign key (loadID)
+		references AWSBulkLoadTable(loadID)
+		on delete cascade,
+		
+	constraint AWSBulkLoadDataTableUniqueConstraint
+		unique (loadID, path)
+	);
+
+
+drop index if exists AWSBulkLoadDataPathIndex;
+create index AWSBuildLoadDataPathIndex on AWSBulkLoadDataTable(loadID, path);
+
+
+
+-- Statistics:
+
 
 
 drop materialized view if exists AWSObjectTableTotals;

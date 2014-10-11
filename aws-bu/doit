@@ -3,4 +3,4 @@ set -eu -o pipefail
 
 go-bindata -o aws-resources.go aws-resources/
 go install
-aws-bu "${@-status}"
+aws-bu "${@-refresh}"

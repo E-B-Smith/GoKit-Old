@@ -91,11 +91,12 @@ func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker s
 	client := &http.Client{ Timeout:time.Minute*2.0, Transport: tr }
 	response, error := client.Do(request)
 	if error == nil {
+		log(AWSLogDebug, "Read %d bytes.", response.ContentLength)
 		var n int
-		buffer := make([] byte, 10000)
+		buffer := make([] byte, 1000)
 		n, error = response.Body.Read(buffer)
 		for n > 0 {
-			log(AWSLogDebug, "Read %d bytes.", n)
+			log(AWSLogDebug, "Writing %d bytes.", n)
 			writer.Write(buffer[:n])
 			n, error = response.Body.Read(buffer)
 			}
