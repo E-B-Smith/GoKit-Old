@@ -1,11 +1,4 @@
 package main
-
-import (
-	"io"
-	"sync"
-	"bufio"
-	"os/exec"
-	)
 	
 
 func install() AWSResultCode {

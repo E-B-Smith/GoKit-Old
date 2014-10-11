@@ -54,7 +54,7 @@ func AWSSignatureForString(string string) string {
 	}
 
 
-func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker string) {
+func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker string) error {
 	var query string = ""
 
 	if len(prefix) > 0 {
@@ -90,6 +90,9 @@ func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker s
 	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
 	client := &http.Client{ Timeout:time.Minute*2.0, Transport: tr }
 	response, error := client.Do(request)
+	if response.statusCode != 200 {
+		error = response.error
+	} else
 	if error == nil {
 		log(AWSLogDebug, "Read %d bytes.", response.ContentLength)
 		var n int
@@ -102,8 +105,14 @@ func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker s
 			}
 		response.Body.Close()
 		}
+	
 
 	log(AWSLogError, "AWS GET error: %v.", error)
+	if error != nil && error == error.EOF {
+		error = nil;
+
+	return error;
+	}
 
 //	response=$(
 //	curl -X GET --insecure \
@@ -128,5 +137,5 @@ func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker s
 //		fi
 //	echo -e "\nResult: $result\n" >&2
 //	echo "$result"
-	}
+//	}
 
