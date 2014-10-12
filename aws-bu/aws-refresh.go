@@ -66,9 +66,10 @@ func writeBundleStatusFile(writer io.Writer, directory string) AWSResultCode {
 	return AWSResultSuccess
 	}
 
+
 func writeAWSStatusFile(writer io.Writer, path string) AWSResultCode {
 	listAWSObjectsWithPrefixAndMarker(writer, path, "")
-	return AWSResultSuccess
+	return AWSResultSuccess;
 	}
 
 	

@@ -70,7 +70,7 @@ create index AWSStatusPIDIndex on AWSStatusTable(pid);
 
 
 
--- Status load tables:
+-- Bulk load tables:
 
 
 
@@ -92,8 +92,9 @@ create table AWSBulkLoadDataTable
 	(
 	loadID			integer not null,
 	path 			varchar(512) not null,
-	mdate 			timestamptz not null,
-	state 			varchar(16) not null,
+	timestamp 		timestamptz not null,
+	bytes 	 		integer not null,
+	storage			varchar(16) not null,
 	
 	constraint AWSBulkLoadDataTableKeyConstraint
 		foreign key (loadID)
@@ -180,6 +181,7 @@ create function humanReadableBytes(size bigint) returns text as
 	returns null on null input;
 
 
+
 drop function if exists daySpan(fromDate timestamptz, toDate timestamptz) cascade;
 create function daySpan(fromDate timestamptz, toDate timestamptz) returns integer as
 	$$
@@ -201,11 +203,13 @@ create function daySpan(fromDate timestamptz, toDate timestamptz) returns intege
 	returns null on null input;
 
 
+
 drop table if exists AWSParameterTable;
 create table AWSParameterTable
 	(
 	 version 			varchar(10)
-	,bundlepath			varchar(256)
+	,localBundlePath	varchar(256)
+	,AWSBucketName		varchar(256)
 	,AWSAccessKeyID		varchar(64)
 	,AWSAccessSecret	varchar(64)
 	,AWSRegion			varchar(16)

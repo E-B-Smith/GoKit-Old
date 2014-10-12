@@ -46,6 +46,16 @@ const (
 	)
 
 
+type AWSStorageType string
+const (
+	AWSStorageLocal 	= "LOCAL"		//	On local disk.
+	AWSStorageStandard	= "STANDARD"	//	Standard S3 bucket.
+	AWSStorageGlacier	= "GLACIER"		//	In glacier storage.  Check head for further state.
+	AWSStorageRestoring	= "RESTORING"	//	Restoring from glacier storage.
+	AWSStorageRestored	= "RESTORED"	//	Restored from glacier storage.
+	)
+
+
 var globalLoggingError bool = false
 
 func log(logLevel AWSLogLevel, format string, args ...interface{}) {

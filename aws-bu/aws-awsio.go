@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"time"
+	"errors"
 	"net/http"
 	"net/url"
 	"crypto/tls"
@@ -90,26 +91,28 @@ func listAWSObjectsWithPrefixAndMarker(writer io.Writer, prefix string, marker s
 	tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
 	client := &http.Client{ Timeout:time.Minute*2.0, Transport: tr }
 	response, error := client.Do(request)
-	if response.statusCode != 200 {
-		error = response.error
-	} else
 	if error == nil {
-		log(AWSLogDebug, "Read %d bytes.", response.ContentLength)
-		var n int
-		buffer := make([] byte, 1000)
-		n, error = response.Body.Read(buffer)
-		for n > 0 {
-			log(AWSLogDebug, "Writing %d bytes.", n)
-			writer.Write(buffer[:n])
+		if response.StatusCode != 200 {
+			log(AWSLogDebug, "Error: HTTP response status %d.", response.StatusCode)
+			error = errors.New(response.Status)
+		} else {
+			log(AWSLogDebug, "Read %d bytes.", response.ContentLength)
+			var n int
+			buffer := make([] byte, 1000)
 			n, error = response.Body.Read(buffer)
+			for n > 0 {
+				log(AWSLogDebug, "Writing %d bytes.", n)
+				writer.Write(buffer[:n])
+				n, error = response.Body.Read(buffer)
+				}
+			response.Body.Close()
 			}
-		response.Body.Close()
 		}
 	
 
 	log(AWSLogError, "AWS GET error: %v.", error)
-	if error != nil && error == error.EOF {
-		error = nil;
+	// if error != nil && error == EOF {
+	// 	error = nil;
 
 	return error;
 	}
