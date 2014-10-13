@@ -5,7 +5,9 @@ import (
 	"os"
 	"time"
 	"strings"
-	"database/sql"	
+	"runtime"
+	"path"
+	"database/sql"
 	)
 
 
@@ -46,7 +48,7 @@ const (
 	)
 
 
-type AWSStorageType string
+type AWSStorageState string
 const (
 	AWSStorageLocal 	= "LOCAL"		//	On local disk.
 	AWSStorageStandard	= "STANDARD"	//	Standard S3 bucket.
@@ -60,8 +62,11 @@ var globalLoggingError bool = false
 
 func log(logLevel AWSLogLevel, format string, args ...interface{}) {
 
+ 	_, filename, linenumber, _ := runtime.Caller(1)
+ 	filename = path.Base(filename)
+
 	var message = fmt.Sprintf(format, args...)
-	fmt.Fprintf(os.Stderr, "%13s: %s\n", logLevel, message)
+	fmt.Fprintf(os.Stderr, "%16s:%-4d %12s %s\n", filename, linenumber, logLevel, message)
 
 	if  globalDatabase == nil || globalLoggingError {
 		return 
@@ -70,9 +75,9 @@ func log(logLevel AWSLogLevel, format string, args ...interface{}) {
 	var sqlCommand string =
 		fmt.Sprintf(
 			`insert into AWSLogTable
-					(time, processname, level, pid, message)
-			values	(to_timestamp(%d), '%s', '%s'::AWSLogLevel, %d, '%s');`,
-			time.Now().UTC().Unix(), command, logLevel, os.Getpid(), strings.Replace(message, "'", "''", -1))
+					(time, processname, filename, linenumber, level, pid, message)
+			values	(to_timestamp(%d), '%s', '%s', %d, '%s'::AWSLogLevel, %d, '%s');`,
+			time.Now().UTC().Unix(), command, filename, linenumber, logLevel, os.Getpid(), strings.Replace(message, "'", "''", -1))
 
 	_, error := globalDatabase.Exec(sqlCommand);
 	if error != nil {

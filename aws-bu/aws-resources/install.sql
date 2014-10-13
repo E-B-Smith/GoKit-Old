@@ -3,23 +3,38 @@ drop database if exists AWSObjects;
 create database AWSObjects with encoding 'UTF8';
 
 
-drop type if exists AWSObjectState cascade;
-create type AWSObjectState as enum
+drop table if exists AWSParameterTable;
+create table AWSParameterTable
 	(
-	 'AWSStateGlacier'
-	,'AWSStateRestoring'
-	,'AWSStateRestored'
-	,'AWSStateStandard'
+	 version 			varchar(10)
+	,localBundlePath	varchar(256)
+	,AWSBucketName		varchar(256)
+	,AWSAccessKeyID		varchar(64)
+	,AWSAccessSecret	varchar(64)
+	,AWSRegion			varchar(16)
 	);
 
-drop table if exists AWSObjectTable;
+insert into AWSParameterTable (version) values ('1.00.001');
+
+
+drop type if exists AWSStorageState cascade;
+create type AWSStorageState as enum
+	(
+	 'AWSStorageLocal'
+	,'AWSStorageGlacier'
+	,'AWSStorageRestoring'
+	,'AWSStorageRestored'
+	,'AWSStorageStandard'
+	);
+
+drop table if exists AWSObjectTable cascade;
 create table AWSObjectTable
 	(
 	 key				varchar(256) unique not null primary key
 
 	,awsDate			timestamptz
 	,awsBytes			integer
-	,awsState			AWSObjectState
+	,awsStorage			AWSStorageState
 
 	,localDate			timestamptz
 	,localBytes			integer
@@ -42,6 +57,8 @@ create table AWSLogTable
 	 entry			serial			unique not null primary key
 	,time			timestamptz		not null
 	,processname	varchar(16)		not null
+	,filename		varchar(32)		not null
+	,linenumber		integer			not null
 	,pid 			integer			not null
 	,level			AWSLogLevel		not null
 	,message		varchar(512) 	not null
@@ -49,6 +66,7 @@ create table AWSLogTable
 
 drop index if exists AWSLogTimeIndex;
 create index AWSLogTimeIndex on AWSLogTable(time, entry);
+
 
 drop table if exists AWSStatusTable;
 create table AWSStatusTable
@@ -92,9 +110,9 @@ create table AWSBulkLoadDataTable
 	(
 	loadID			integer not null,
 	path 			varchar(512) not null,
-	timestamp 		timestamptz not null,
-	bytes 	 		integer not null,
-	storage			varchar(16) not null,
+	awsDate 		timestamptz not null,
+	awsBytes 		integer not null,
+	awsStorage		varchar(16) not null,
 	
 	constraint AWSBulkLoadDataTableKeyConstraint
 		foreign key (loadID)
@@ -129,8 +147,8 @@ select
 	sum(case when localdate is not null then localbytes else 0 end) as TotalLocalBytes,
 	sum(case when awsdate is not null then 1 else 0 end) as TotalAWSParts,
 	sum(case when awsdate is not null then awsbytes else 0 end) as TotalAWSBytes,
-	sum(case when awsstate = 'AWSStateGlacier' then 1 else 0 end) as totalGlacierParts,
-	sum(case when awsstate = 'AWSStateGlacier' then awsbytes else 0 end) as totalGlacierBytes
+	sum(case when awsstorage = 'AWSStorageGlacier' then 1 else 0 end) as totalGlacierParts,
+	sum(case when awsstorage = 'AWSStorageGlacier' then awsbytes else 0 end) as totalGlacierBytes
 		from awsobjecttable
 		group by split_part(key, '/', 1);
 
@@ -173,7 +191,7 @@ create function humanReadableBytes(size bigint) returns text as
 		num = num / 1024.0;
 		end loop;
 
-	return lpad('Really?', 8);
+	return num||' Really?';
 	
 	end; 
 	$$ 
@@ -202,18 +220,4 @@ create function daySpan(fromDate timestamptz, toDate timestamptz) returns intege
 	language plpgsql immutable
 	returns null on null input;
 
-
-
-drop table if exists AWSParameterTable;
-create table AWSParameterTable
-	(
-	 version 			varchar(10)
-	,localBundlePath	varchar(256)
-	,AWSBucketName		varchar(256)
-	,AWSAccessKeyID		varchar(64)
-	,AWSAccessSecret	varchar(64)
-	,AWSRegion			varchar(16)
-	);
-
-insert into AWSParameterTable (version) values ('1.00.001');
 

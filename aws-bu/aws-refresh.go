@@ -59,7 +59,7 @@ func writeBundleStatusFile(writer io.Writer, directory string) AWSResultCode {
 			result := writeBundleStatusFile(writer, path)
 			if result != AWSResultSuccess { return result }
 		} else {
-			fmt.Fprintf(writer, "%s\t%v\t%v\n", path, file.ModTime(), file.Size())
+			fmt.Fprintf(writer, "%s\t%s\t%v\n", path, file.ModTime().Format("2006-01-02 15:04:05 -7:00"), file.Size())
 			}
 		}
 
