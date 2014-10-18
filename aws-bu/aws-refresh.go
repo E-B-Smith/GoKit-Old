@@ -28,6 +28,9 @@ func refreshData() AWSResultCode {
 	os.Chdir(workingDirectory)
 	writer.Close()
 
+//		--	from '/Users/Edward/Development/go/src/violent.blue/go/aws-bu/TestData/TestBackup.ldata'
+	
+
 	//	Write AWS meta-data -- 
 
 	log(AWSLogDebug, "Writing AWS file meta-data.")

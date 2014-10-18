@@ -1,9 +1,21 @@
 
-drop database if exists AWSObjects;
-create database AWSObjects with encoding 'UTF8';
+
+drop database if exists database;
+drop user if exists AWSBackup;
 
 
-drop table if exists AWSParameterTable;
+create user AWSBackup 
+	with createdb login password 'AWSBackup';
+
+
+create database AWSObjects 
+	with encoding 'UTF8'
+	user AWSBackup;
+
+create schema AWSBackup authorization AWSBackup;
+
+set search_path TO AWSBackup, public;
+
 create table AWSParameterTable
 	(
 	 version 			varchar(10)
@@ -17,7 +29,6 @@ create table AWSParameterTable
 insert into AWSParameterTable (version) values ('1.00.001');
 
 
-drop type if exists AWSStorageState cascade;
 create type AWSStorageState as enum
 	(
 	 'AWSStorageLocal'
@@ -27,7 +38,7 @@ create type AWSStorageState as enum
 	,'AWSStorageStandard'
 	);
 
-drop table if exists AWSObjectTable cascade;
+
 create table AWSObjectTable
 	(
 	 key				varchar(256) unique not null primary key
@@ -40,7 +51,7 @@ create table AWSObjectTable
 	,localBytes			integer
 	);
 
-drop type if exists AWSLogLevel cascade;
+
 create type AWSLogLevel as enum
 	(
 	 'AWSLogDebug'
@@ -51,7 +62,7 @@ create type AWSLogLevel as enum
 	,'AWSLogError'
 	);
 
-drop table if exists AWSLogTable;
+
 create table AWSLogTable
 	(
 	 entry			serial			unique not null primary key
@@ -63,12 +74,9 @@ create table AWSLogTable
 	,level			AWSLogLevel		not null
 	,message		varchar(512) 	not null
 	);
-
-drop index if exists AWSLogTimeIndex;
 create index AWSLogTimeIndex on AWSLogTable(time, entry);
 
 
-drop table if exists AWSStatusTable;
 create table AWSStatusTable
 	(
 	 entry				serial			unique not null primary key
@@ -82,17 +90,12 @@ create table AWSStatusTable
 	,totalLocalBytes	bigint
 	,message			varchar(512)
 	);
-
-drop index if exists AWSStatusPIDIndex;
 create index AWSStatusPIDIndex on AWSStatusTable(pid);
-
 
 
 -- Bulk load tables:
 
 
-
-drop table if exists AWSBulkLoadTable cascade;
 create table AWSBulkLoadTable
 	(
 	loadID		   serial primary key,
@@ -105,7 +108,6 @@ create table AWSBulkLoadTable
 	);
 
 
-drop table if exists AWSBulkLoadDataTable; 
 create table AWSBulkLoadDataTable
 	(
 	loadID			integer not null,
@@ -122,18 +124,12 @@ create table AWSBulkLoadDataTable
 	constraint AWSBulkLoadDataTableUniqueConstraint
 		unique (loadID, path)
 	);
-
-
-drop index if exists AWSBulkLoadDataPathIndex;
 create index AWSBuildLoadDataPathIndex on AWSBulkLoadDataTable(loadID, path);
-
 
 
 -- Statistics:
 
 
-
-drop materialized view if exists AWSObjectTableTotals;
 create materialized view AWSObjectTableTotals as
 select
 	split_part(key, '/', 1) as Bundle,
@@ -171,7 +167,163 @@ select
 --		from aws
 
 
-drop function if exists humanReadableBytes(size bigint) cascade;
+--	Load local Meta-data:
+
+
+create function AWSBulkLoadLocalData(filepath text) return integer as
+	$$
+	begin;
+
+	begin; -- For debugging
+	truncate table AWSObjectTable;
+	truncate table BulkLoadTable cascade;
+	commit;
+
+	-- create temporary table BulkLoadTable
+	create table if not exists BulkLoadTable
+		(
+		 key				varchar(256) unique not null primary key
+		,localDate			timestamptz
+		,localBytes			integer
+		)
+	; -- on commit drop;
+
+	copy BulkLoadTable from filepath with null '';
+
+	lock table AWSObjectTable in exclusive mode;
+
+	update AWSObjectTable
+		set localDate = BulkLoadTable.localDate,
+			localBytes = BulkLoadTable.localBytes
+		from BulkLoadTable
+		where BulkLoadTable.key = AWSObjectTable.key;
+		
+	insert into AWSObjectTable
+			(key, localDate, localBytes)
+		select
+			BulkLoadTable.key,
+			BulkLoadTable.localDate,
+			BulkLoadTable.localBytes
+		from BulkLoadTable
+		left outer join AWSObjectTable on 
+			(AWSObjectTable.key = BulkLoadTable.key)
+		where AWSObjectTable.key is null;
+		
+	commit;
+	end; 
+	$$ 
+	language plpgsql immutable
+	returns null on null input;
+
+
+-- Load AWS Data:
+
+create function AWSBulkLoadLocalData(filepath text) return integer as
+	$$
+		begin;
+
+	begin;
+	truncate table bulkLoadText cascade;
+	truncate table bulkLoadXML cascade;
+	truncate table AWSBulkLoadTable cascade;
+	truncate table AWSBulkLoadDataTable cascade;
+	commit;
+
+	begin;
+
+	-- Create a temp text table to copy the raw data into:
+
+	-- create temp table bulkLoadText (textData text) on commit drop;
+	create table if not exists  bulkLoadText (textData text);
+
+	copy bulkLoadText (textData)
+		from '/Users/Edward/Development/go/src/violent.blue/go/aws-bu/TestData/TestBackup.adata';
+	--	from stdin;
+
+	delete from bulkLoadText where ctid in 
+		(select ctid from bulkLoadText limit 1);
+
+	-- Create a temp table to hold the parsed XML so we only parse it once:
+
+	-- create temp table bulkLoadXML
+	create table if not exists bulkLoadXML
+		(
+		xmlData  	xml,
+		bucket	 	varchar(256),
+		prefix	 	varchar(512),
+		isTruncated bool
+		) 
+	; --	on commit drop;
+
+
+	drop function if exists namespace() cascade;
+	create function namespace() returns text[][] as
+		$$
+		begin
+		return array[array['ns', 'http://s3.amazonaws.com/doc/2006-03-01/']];
+		end;
+		$$ 
+		language plpgsql immutable;
+
+
+	select namespace();
+
+
+	insert into bulkLoadXML
+		with parsedXML as 
+		  (select xmlparse(document textdata) as xmlData from bulkLoadText)
+		select 
+		  xmlData,
+		  (xpath('/ns:ListBucketResult/ns:Name/text()', xmlData, namespace()))[1]::text,
+		  (xpath('/ns:ListBucketResult/ns:Prefix/text()', xmlData, namespace()))[1]::text,
+		  (xpath('/ns:ListBucketResult/ns:IsTruncated/text()', xmlData, namespace()))[1]::text::bool
+			from parsedXML;
+
+
+	insert into AWSBulkLoadTable
+	           (bucket, prefix, isTruncated)
+		select bucket, prefix, isTruncated
+		from bulkLoadXML
+		where not exists 
+		(select 1 from AWSBulkLoadTable
+		  where bucket = bulkLoadXML.bucket
+		    and prefix = bulkLoadXML.prefix);
+
+	select * from AWSBulkLoadTable;
+		      
+	update AWSBulkLoadTable
+		set bucket = bulkLoadXML.bucket,
+		    prefix = bulkLoadXML.prefix,
+		    isTruncated = bulkLoadXML.isTruncated
+		from bulkLoadXML
+		where AWSBulkLoadTable.bucket = bulkLoadXML.bucket
+		  and AWSBulkLoadTable.prefix = bulkLoadXML.prefix;
+
+
+	insert into AWSBulkLoadDataTable
+	  (loadID, path, timestamp, bytes, storage)
+	select
+	  AWSBulkLoadTable.loadID,
+	  ((xpath('Key/text()', contents))[1]::text),
+	  ((xpath('LastModified/text()', contents))[1]::text::timestamptz),
+	  ((xpath('Size/text()', contents))[1]::text::integer),
+	  ((xpath('StorageClass/text()', contents))[1]::text)
+	from (select unnest(xpath('/ns:ListBucketResult/ns:Contents', xmlData, namespace())) as contents
+	    from (select xmlData, bucket, prefix from bulkLoadXML) x1) x2
+	  join AWSBulkLoadTable on
+	    AWSBulkLoadTable.bucket = bucket and 
+		AWSBulkLoadTable.prefix = prefix;
+
+
+	commit;
+	$$
+	language plpgsql immutable
+	returns null on null input;
+
+
+-- Helper functions:
+
+
 create function humanReadableBytes(size bigint) returns text as
 	$$
 	declare 
@@ -194,13 +346,11 @@ create function humanReadableBytes(size bigint) returns text as
 	return num||' Really?';
 	
 	end; 
-	$$ 
+	$$
 	language plpgsql immutable
 	returns null on null input;
 
 
-
-drop function if exists daySpan(fromDate timestamptz, toDate timestamptz) cascade;
 create function daySpan(fromDate timestamptz, toDate timestamptz) returns integer as
 	$$
 	declare quanta interval;
@@ -221,3 +371,4 @@ create function daySpan(fromDate timestamptz, toDate timestamptz) returns intege
 	returns null on null input;
 
 
+-- 
