@@ -1,6 +1,7 @@
 
 
-drop database if exists database;
+drop database if exists AWSBackup;
+drop schema if exists AWSBackup cascade;
 drop user if exists AWSBackup;
 
 
@@ -8,13 +9,14 @@ create user AWSBackup
 	with createdb login password 'AWSBackup';
 
 
-create database AWSObjects 
-	with encoding 'UTF8'
-	user AWSBackup;
+create database AWSBackup
+	with encoding 'UTF8' owner AWSBackup;
+
 
 create schema AWSBackup authorization AWSBackup;
 
 set search_path TO AWSBackup, public;
+
 
 create table AWSParameterTable
 	(
@@ -93,7 +95,62 @@ create table AWSStatusTable
 create index AWSStatusPIDIndex on AWSStatusTable(pid);
 
 
--- Bulk load tables:
+--	Load local data:
+
+
+create function AWSBulkLoadLocalData(filepath text) returns integer as
+	$$
+	begin
+
+	truncate table AWSObjectTable;
+	truncate table BulkLoadTable cascade;
+
+	-- create temporary table BulkLoadTable
+	create table if not exists BulkLoadTable
+		(
+		 key				varchar(256) unique not null primary key
+		,localDate			timestamptz
+		,localBytes			integer
+		)
+	; -- on commit drop;
+
+	copy BulkLoadTable from 'filepath' with null '';
+
+	lock table AWSObjectTable in exclusive mode;
+
+	update AWSObjectTable
+		set localDate = BulkLoadTable.localDate,
+			localBytes = BulkLoadTable.localBytes
+		from BulkLoadTable
+		where BulkLoadTable.key = AWSObjectTable.key;
+		
+	insert into AWSObjectTable
+			(key, localDate, localBytes)
+		select
+			BulkLoadTable.key,
+			BulkLoadTable.localDate,
+			BulkLoadTable.localBytes
+		from BulkLoadTable
+		left outer join AWSObjectTable on 
+			(AWSObjectTable.key = BulkLoadTable.key)
+		where AWSObjectTable.key is null;
+		
+	end; 
+	$$ 
+	language plpgsql
+	returns null on null input;
+
+
+-- Load AWS Data:
+
+
+create function awsxmlns() returns text[][] as
+	$$
+	begin
+	return array[array['ns', 'http://s3.amazonaws.com/doc/2006-03-01/']];
+	end;
+	$$ 
+	language plpgsql immutable;
 
 
 create table AWSBulkLoadTable
@@ -127,109 +184,16 @@ create table AWSBulkLoadDataTable
 create index AWSBuildLoadDataPathIndex on AWSBulkLoadDataTable(loadID, path);
 
 
--- Statistics:
-
-
-create materialized view AWSObjectTableTotals as
-select
-	split_part(key, '/', 1) as Bundle,
-	sum(case when awsdate < localdate then 1 else 0 end) as UpdatedParts,
-	sum(case when awsdate < localdate then localbytes else 0 end) as UpdatedBytes,
-	sum(case when awsdate is null then 1 else 0 end) as NewParts,
-	sum(case when awsdate is null then localbytes else 0 end) as NewBytes,
-	sum(case when localdate is null then 1 else 0 end) as DeleteParts,
-	sum(case when localdate is null then awsbytes else 0 end) as DeleteBytes,
-	sum(case when localdate is not null then 1 else 0 end) as TotalLocalParts,
-	sum(case when localdate is not null then localbytes else 0 end) as TotalLocalBytes,
-	sum(case when awsdate is not null then 1 else 0 end) as TotalAWSParts,
-	sum(case when awsdate is not null then awsbytes else 0 end) as TotalAWSBytes,
-	sum(case when awsstorage = 'AWSStorageGlacier' then 1 else 0 end) as totalGlacierParts,
-	sum(case when awsstorage = 'AWSStorageGlacier' then awsbytes else 0 end) as totalGlacierBytes
-		from awsobjecttable
-		group by split_part(key, '/', 1);
-
-
--- drop materialized view if exists AWSObjectDistributionTable;
--- create materialized view AWSObjectDistributionTable as
--- select
---     awsDate::date as "Day",	
--- 	split_part(key, '/', 1) as Bundle,
--- 	sum(awsBytes::bigint) as "Bytes"
---     from AWSObjectTable
--- 	where awsDate is not null
--- 		group by awsDate::date 
--- 		order by awsDate::date desc;
-
--- date_trunc('day', awsDate)	
-
---select
---	split_part(key, '/', 1) as Bundle,
---		from aws
-
-
---	Load local Meta-data:
-
-
-create function AWSBulkLoadLocalData(filepath text) return integer as
+create function AWSBulkLoadAWSData(filepath text) returns integer as
 	$$
-	begin;
+	begin
 
-	begin; -- For debugging
-	truncate table AWSObjectTable;
-	truncate table BulkLoadTable cascade;
-	commit;
-
-	-- create temporary table BulkLoadTable
-	create table if not exists BulkLoadTable
-		(
-		 key				varchar(256) unique not null primary key
-		,localDate			timestamptz
-		,localBytes			integer
-		)
-	; -- on commit drop;
-
-	copy BulkLoadTable from filepath with null '';
-
-	lock table AWSObjectTable in exclusive mode;
-
-	update AWSObjectTable
-		set localDate = BulkLoadTable.localDate,
-			localBytes = BulkLoadTable.localBytes
-		from BulkLoadTable
-		where BulkLoadTable.key = AWSObjectTable.key;
-		
-	insert into AWSObjectTable
-			(key, localDate, localBytes)
-		select
-			BulkLoadTable.key,
-			BulkLoadTable.localDate,
-			BulkLoadTable.localBytes
-		from BulkLoadTable
-		left outer join AWSObjectTable on 
-			(AWSObjectTable.key = BulkLoadTable.key)
-		where AWSObjectTable.key is null;
-		
-	commit;
-	end; 
-	$$ 
-	language plpgsql immutable
-	returns null on null input;
-
-
--- Load AWS Data:
-
-create function AWSBulkLoadLocalData(filepath text) return integer as
-	$$
-		begin;
-
-	begin;
+	-- For debugging:
+	
 	truncate table bulkLoadText cascade;
 	truncate table bulkLoadXML cascade;
 	truncate table AWSBulkLoadTable cascade;
 	truncate table AWSBulkLoadDataTable cascade;
-	commit;
-
-	begin;
 
 	-- Create a temp text table to copy the raw data into:
 
@@ -255,28 +219,14 @@ create function AWSBulkLoadLocalData(filepath text) return integer as
 		) 
 	; --	on commit drop;
 
-
-	drop function if exists namespace() cascade;
-	create function namespace() returns text[][] as
-		$$
-		begin
-		return array[array['ns', 'http://s3.amazonaws.com/doc/2006-03-01/']];
-		end;
-		$$ 
-		language plpgsql immutable;
-
-
-	select namespace();
-
-
 	insert into bulkLoadXML
 		with parsedXML as 
 		  (select xmlparse(document textdata) as xmlData from bulkLoadText)
 		select 
 		  xmlData,
-		  (xpath('/ns:ListBucketResult/ns:Name/text()', xmlData, namespace()))[1]::text,
-		  (xpath('/ns:ListBucketResult/ns:Prefix/text()', xmlData, namespace()))[1]::text,
-		  (xpath('/ns:ListBucketResult/ns:IsTruncated/text()', xmlData, namespace()))[1]::text::bool
+		  (xpath('/ns:ListBucketResult/ns:Name/text()', xmlData, awsxmlns()))[1]::text,
+		  (xpath('/ns:ListBucketResult/ns:Prefix/text()', xmlData, awsxmlns()))[1]::text,
+		  (xpath('/ns:ListBucketResult/ns:IsTruncated/text()', xmlData, awsxmlns()))[1]::text::bool
 			from parsedXML;
 
 
@@ -315,13 +265,13 @@ create function AWSBulkLoadLocalData(filepath text) return integer as
 		AWSBulkLoadTable.prefix = prefix;
 
 
-	commit;
+	end;
 	$$
-	language plpgsql immutable
+	language plpgsql
 	returns null on null input;
 
 
--- Helper functions:
+-- Statistics:
 
 
 create function humanReadableBytes(size bigint) returns text as
@@ -371,4 +321,38 @@ create function daySpan(fromDate timestamptz, toDate timestamptz) returns intege
 	returns null on null input;
 
 
--- 
+create materialized view AWSObjectTableTotals as
+select
+	split_part(key, '/', 1) as Bundle,
+	sum(case when awsdate < localdate then 1 else 0 end) as UpdatedParts,
+	sum(case when awsdate < localdate then localbytes else 0 end) as UpdatedBytes,
+	sum(case when awsdate is null then 1 else 0 end) as NewParts,
+	sum(case when awsdate is null then localbytes else 0 end) as NewBytes,
+	sum(case when localdate is null then 1 else 0 end) as DeleteParts,
+	sum(case when localdate is null then awsbytes else 0 end) as DeleteBytes,
+	sum(case when localdate is not null then 1 else 0 end) as TotalLocalParts,
+	sum(case when localdate is not null then localbytes else 0 end) as TotalLocalBytes,
+	sum(case when awsdate is not null then 1 else 0 end) as TotalAWSParts,
+	sum(case when awsdate is not null then awsbytes else 0 end) as TotalAWSBytes,
+	sum(case when awsstorage = 'AWSStorageGlacier' then 1 else 0 end) as totalGlacierParts,
+	sum(case when awsstorage = 'AWSStorageGlacier' then awsbytes else 0 end) as totalGlacierBytes
+		from awsobjecttable
+		group by split_part(key, '/', 1);
+
+
+create materialized view AWSObjectDistributionTable as
+select
+    awsDate::date as "Day",	
+	split_part(key, '/', 1) as Bundle,
+	sum(awsBytes::bigint) as "Bytes"
+    from AWSObjectTable
+	where awsDate is not null
+		group by awsDate::date, split_part(key, '/', 1)
+		order by awsDate::date desc;
+
+-- date_trunc('day', awsDate)	
+
+--select
+--	split_part(key, '/', 1) as Bundle,
+--		from aws
+
