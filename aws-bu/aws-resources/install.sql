@@ -15,6 +15,7 @@ create database AWSBackup
 
 create schema AWSBackup authorization AWSBackup;
 
+
 set search_path TO AWSBackup, public;
 
 
