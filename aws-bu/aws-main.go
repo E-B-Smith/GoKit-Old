@@ -27,7 +27,8 @@ func main() {
 
 	var exitResult AWSResultCode = AWSResultError;
 	exitResult = connectDatabase()
-	if exitResult == AWSResultNotInstalled {} else
+	if exitResult == AWSResultNotInstalled {
+	} else 
 	if exitResult != AWSResultSuccess {
 		os.Exit(int(exitResult))
 		}

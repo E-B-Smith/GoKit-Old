@@ -1,0 +1,22 @@
+
+deploy-group {
+
+    user hduser;
+    group hduser ;
+    permissions 644;
+
+    deploy dir as  file2;
+    
+    deploy-group {
+        user hduser;        #  Comment 1
+        group hduser;       //  Comment 2
+        permissions 666;
+
+        file3  as  file4;
+        }
+    };
+
+hosts {
+    relcy-r1, relcy-r2, relcy-r3,
+    include "./other-hosts"
+    };
