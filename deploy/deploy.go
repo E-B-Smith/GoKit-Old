@@ -19,7 +19,6 @@ import (
 	"os"
 	"fmt"
 	"flag"
-	"bufio"
 	"strings"
 	)
 
@@ -50,29 +49,75 @@ func main() {
 	flag.StringVar(&flagInputFileName, "i", "", "Input file.  The file from which to read the deployment manifest.")
 	flag.Parse()
 
-
 	var error error = nil
 	if flagInputFileName == "" {
 		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {		
-			flagInputFile = os.Stdin 
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			flagInputFile = os.Stdin
 			}
 	} else  {
 		flagInputFile, error = os.Open(flagInputFileName)
 		if error != nil {
-            log(DULogError, "Error: Can't open file '%s' for reading: %s.", flagInputFileName, error)
+            log(DULogError, "Error: Can't open file '%s' for reading: %v.", flagInputFileName, error)
             os.Exit(1)
         	}
         defer flagInputFile.Close()
 		}
 
 	log(DULogStart, "Start %s.", strings.Trim(fmt.Sprint(os.Args), "[]"))
+	defer log(DULogExit, "Done.")
 
-    scanner := bufio.NewScanner(flagInputFile)
-    scanner.Split(ScanManifest)
-    for scanner.Scan() {
-        str := scanner.Text()
-        log(DULogDebug, "%s", str)
-    	}
+	manifest, error := ParseManifest(flagInputFile)
+	if error != nil {
+		log(DULogError, "Error: %v.", error)
+		os.Exit(1)
+		}
+
+	log(DULogDebug, "Manifest:\n%v", manifest)
+
+	//	Make sure that every host is accessible & supports the users/groups-- 
+
+	error = nil
+	for i := 0; i < len(manifest.deployGroups); i++ {
+		newError := CheckRemoteHostsForOwnersAndGroups(manifest.deployGroups[i])
+		if newError != nil && error == nil {
+			error = newError
+			}
+		}
+
+	if error != nil {
+		log(DULogError, "Deployment can't procede: %v.", error)
+		os.Exit(1)
+		}
+
+	//	Copy files to the remote hosts -- 
+
+	error = nil
+	for i := 0; i < len(manifest.deployGroups); i++ {
+		newError := CopyFileToRemoteHosts(manifest.deployGroups[i])
+		if newError != nil && error == nil {
+			error = newError
+			}
+		}
+
+	if error != nil {
+		log(DULogError, "Deployment can't procede: %v.", error)
+		os.Exit(1)
+		}
+
+	//	Install the files on the remote hosts -- 
+
+	error = nil
+	for i := 0; i < len(manifest.deployGroups); i++ {
+		newError := InstallFilesOnRemoteHosts(manifest.deployGroups[i])
+		if newError != nil && error == nil {
+			error = newError
+			}
+		}
+
+	if error != nil {
+		log(DULogError, "Deployment can't procede: %v.", error)
+		os.Exit(1)
+		}
 	}
 

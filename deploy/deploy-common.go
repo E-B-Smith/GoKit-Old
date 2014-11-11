@@ -49,7 +49,6 @@ func log(logLevel DULogLevel, format string, args ...interface{}) {
  		i = 16
  		}
 
-
 	var message = fmt.Sprintf(format, args...)
 	fmt.Fprintf(os.Stderr, "%16s:%-4d %s %s\n", filename[:i], linenumber, logLevel, message)
 	}

@@ -42,7 +42,7 @@ Flow
 * (Create a deployment lock on the host).
 * Make sure that each user and group on each host exists.
 * rsync each file to a deployment directory.
-* rsync each file to a move directory.
+// * rsync each file to a move directory.
 * Fix permissions and owners of move directory.
 * Move files into place.
 * Report errors & success.
@@ -50,32 +50,5 @@ Flow
 * (Remove deployment lock).
 
 sshd reallybangat
-
-
-
-
-
-ident, error = scanIdentifier(ptr)
-if error then
-    ...
-else
-if ident == "deploy-group" then
-    deploygroup, error = parseDeployGroup(ptr)
-    if error then
-        report(error)
-        exit(1)
-    else
-        mergerDeploygroup(deployGroup)
-else
-if ident == "hosts" then
-    hosts, error = parseHosts(ptr)
-    if error then 
-        report(error)
-        exit
-    else
-        done=true
-else
-    report "error"
-    
 
     
