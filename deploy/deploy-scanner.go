@@ -1,4 +1,4 @@
-//  deploy  -  Deploy utility.  Deploy a set of files across a set of servers.
+//  ZScanner  -  A parser to parse a configuration file.
 //
 //  E.B.Smith  -  November, 2014
 
@@ -7,91 +7,201 @@ package main
 
 
 import (
-	"fmt"
+	"os"
+	"bytes"
 	"bufio"
 	"unicode"
-	"unicode/utf8"
 	"errors"
-//	"strconv"
+	"strconv"
 	)
 
 
-//	Parse an identifier -- 
+type ZScanner struct {
+	file 		*os.File
+	reader		*bufio.Reader
+	lineNumber 	int
+	error		error
+	token		string
+	}
 
-func IsValidIdentifierStartCharacter(r rune) bool {
+
+func NewZScanner(file *os.File) *ZScanner {
+	scanner := new(ZScanner)
+	scanner.file = file
+	scanner.reader = bufio.NewReader(file)
+	scanner.lineNumber = 1
+	return scanner
+	}
+
+
+func (scanner *ZScanner) FileName() string {
+	return scanner.file.Name()
+	}
+
+
+func (scanner *ZScanner) LineNumber() int {
+	return scanner.lineNumber
+	}
+
+
+func (scanner *ZScanner) IsAtEnd() bool {
+	return scanner.error != nil
+	}
+
+
+func (scanner *ZScanner) Token() string {
+	return scanner.token;
+	}
+
+
+//	Scan Routines -- 
+
+
+func IsValidIdentifierStartRune(r rune) bool {
 	return unicode.IsLetter(r) || r == '_'
 	}
 
 
-func IsValidIdentifierCharacter(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_';
+func IsValidIdentifierRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
 	}
 
 
-func ScanIdentifier(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func ZIsSpace(r rune) bool {
+	return unicode.IsSpace(r) || r == '#'
+	}
 
-	// Skip leading spaces.
-	var (
-		r rune 
-		width int = 0
-		start int = 0
-		)
-	for width = 0; start < len(data); start += width {
-		r, width = utf8.DecodeRune(data[start:])
-		if !unicode.IsSpace(r) {
-			break
-			}
-		}
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-		}
 
-	// Make sure we're pointer at a valid identifier character.
-	r, width = utf8.DecodeRune(data[start:])
-	if !IsValidIdentifierStartCharacter(r) {
-		oldAdvance := advance
-		advance, token, _ = bufio.ScanWords(data, atEOF)
-		advance += oldAdvance
-		err = errors.New( fmt.Sprintf("Identifier expected. Scanning '%s'.", token) )
-		return advance, token, err
-		}
+func ZIsLineFeed(r rune) bool {
+	return r == '\n' || r == '\u0085'
+	}
 
-	// Scan while in identifier characters.
-	for width, i := 0, start; i < len(data); i += width {
+
+func (scanner *ZScanner) ScanSpaces() (token string, error error) {
+	for ! scanner.IsAtEnd() {
 		var r rune
-		r, width = utf8.DecodeRune(data[i:])
-		if !IsValidIdentifierCharacter(r) {
-			return i + width, data[start:i], nil
+		r, _, scanner.error = scanner.reader.ReadRune()
+
+		if r == '#' {
+			for !scanner.IsAtEnd() && !ZIsLineFeed(r) {
+				r, _, scanner.error = scanner.reader.ReadRune()
+				}
 			}
+
+		if ZIsLineFeed(r) {
+			scanner.lineNumber++
+			continue
+			}
+
+		if ZIsSpace(r) {
+			continue
+			}
+
+		scanner.reader.UnreadRune()
+		return "", nil
 		}
 
-	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
-	if atEOF && len(data) > start {
-		return len(data), data[start:], nil
-		}
-
-	// Request more data.
-	return 0, nil, nil
+	return "", scanner.error;	
 	}
 
 
-func ScanManifest(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func IsValidStringRune(r rune) bool {
+	if r == ';' || r == ',' || ZIsSpace(r) { return false }
+	return unicode.IsGraphic(r)
+	}
 
-    advance, token, err = ScanIdentifier(data, atEOF)
-    log(DULogDebug, "Advance: %d Token: %s Err: %v", advance, token, err)
-	// if err == nil && token != nil {
-	// 	_, err = strconv.ParseInt(string(token), 10, 32)
+
+func (scanner *ZScanner) ScanString() (next string, error error) {
+	_, error = scanner.ScanSpaces()
+
+	var (r rune; buffer bytes.Buffer)
+	r, _, scanner.error = scanner.reader.ReadRune()
+
+	for IsValidStringRune(r) {
+		buffer.WriteRune(r)
+		r, _, scanner.error = scanner.reader.ReadRune()
+		}
+	scanner.reader.UnreadRune()
+
+	scanner.token = buffer.String() 
+	return scanner.token, nil
+	}
+
+
+func (scanner *ZScanner) ScanInteger() (int int, error error) {
+	scanner.ScanSpaces()
+	var r rune
+	r, _, scanner.error = scanner.reader.ReadRune()
+
+	if ! unicode.IsDigit(r) {
+		scanner.reader.UnreadRune()
+		scanner.token, _ = scanner.ScanNext()
+		return 0, errors.New("Integer expected")
+		}
+
+	var buffer bytes.Buffer
+	for unicode.IsDigit(r) {
+		buffer.WriteRune(r)
+		r, _, scanner.error = scanner.reader.ReadRune()
+		}
+	scanner.reader.UnreadRune()
+
+	scanner.token = buffer.String()
+	return  strconv.Atoi(scanner.token)
+	}
+
+
+func (scanner *ZScanner) ScanNext() (next string, error error) {
+	scanner.ScanSpaces()
+	var r rune
+	r, _, scanner.error = scanner.reader.ReadRune()
+
+	// if r == "\"" {
+	// 	return scanner.ScanQuotedString()
 	// 	}
-	return
-    }
+
+	if unicode.IsPunct(r) {
+		var buffer bytes.Buffer 
+		buffer.WriteRune(r)
+		scanner.token = buffer.String() 
+		return scanner.token, nil
+		}
+
+	if unicode.IsDigit(r) {
+		scanner.reader.UnreadRune()
+		scanner.ScanInteger()		
+		return scanner.token, scanner.error
+		}
+
+	scanner.reader.UnreadRune()
+	return scanner.ScanString()
+	}
 
 
+func (scanner *ZScanner) ScanIdentifier() (identifier string, error error) {
+	scanner.ScanSpaces()
+	var r rune
+	r, _, scanner.error = scanner.reader.ReadRune()
+	if scanner.error != nil {
+		return "", scanner.error
+		}
 
+	if ! IsValidIdentifierStartRune(r) {
+		scanner.reader.UnreadRune()
+		scanner.ScanNext()
+		return "", errors.New("Identifier expected")
+		}
 
+	var buffer bytes.Buffer
+	for IsValidIdentifierRune(r) {
+		buffer.WriteRune(r)
+		r, _, scanner.error = scanner.reader.ReadRune()
+		}
+	scanner.reader.UnreadRune()
 
+	scanner.token = buffer.String() 
+	return scanner.token, nil
+	}
 
-
-
-
-
+// func ScanQuotedString() string {}
 
