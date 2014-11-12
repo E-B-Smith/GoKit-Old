@@ -5,7 +5,7 @@ set -eu -o pipefail
 
 returnValue=0
 hostname=`hostname`
-function ckuser()
+function ckowner()
 	{
 	if ! id "$1" >& /dev/null; then 
 		echo "Host $hostname user $1 does not exist" >&2
@@ -20,8 +20,8 @@ function ckgroup()
  		fi	
 	}
 
-ckuser Edward
-ckuser Bob
+ckowner Edward
+ckowner Bob
 ckgroup staff
 ckgroup blafs
 

@@ -23,9 +23,6 @@ const (
 	)
 
 
-const DUVersion = "1.00.001"
-
-
 type DULogLevel string
 const (
 	DULogDebug   = "Debug"
@@ -35,9 +32,6 @@ const (
 	DULogWarning = " Warn"
 	DULogError   = "Error"
 	)
-
-
-var globalLoggingError bool = false
 
 
 func log(logLevel DULogLevel, format string, args ...interface{}) {

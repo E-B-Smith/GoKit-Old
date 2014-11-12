@@ -66,6 +66,9 @@ func IsValidIdentifierRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
 	}
 
+func IsOctalDigit(r rune) bool {
+	return unicode.IsDigit(r) && r != '8' && r != '9'
+	}
 
 func ZIsSpace(r rune) bool {
 	return unicode.IsSpace(r) || r == '#'
@@ -201,6 +204,30 @@ func (scanner *ZScanner) ScanIdentifier() (identifier string, error error) {
 
 	scanner.token = buffer.String() 
 	return scanner.token, nil
+	}
+
+
+func (scanner *ZScanner) ScanOctal() (Integer int, error error) {
+	scanner.ScanSpaces()
+	var r rune
+	r, _, scanner.error = scanner.reader.ReadRune()
+
+	if ! IsOctalDigit(r) {
+		scanner.reader.UnreadRune()
+		scanner.token, _ = scanner.ScanNext()
+		return 0, errors.New("Octal number expected")
+		}
+
+	var buffer bytes.Buffer
+	for IsOctalDigit(r) {
+		buffer.WriteRune(r)
+		r, _, scanner.error = scanner.reader.ReadRune()
+		}
+	scanner.reader.UnreadRune()
+
+	scanner.token = buffer.String()
+	val, error := strconv.ParseInt(scanner.token, 8, 0)
+	return int(val), error
 	}
 
 // func ScanQuotedString() string {}

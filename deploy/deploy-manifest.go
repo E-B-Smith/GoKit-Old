@@ -120,13 +120,16 @@ func ParseDeployItems(scanner *ZScanner) (newItem []DeployItem, error error) {
 			if attributes.permissions != 0 {
 				return nil, ParseError(scanner, "Permissions were already specified")
 				}
-			mode, error := scanner.ScanInteger()
+			mode, error := scanner.ScanOctal()
 			if error != nil {
 				return nil, ParseError(scanner, "Permissions are expected")
 				}
 			if mode == 0 {
-				return nil, ParseError(scanner, "Permissions of mode '000' aren't permitted")
-				}				
+				return nil, ParseError(scanner, "Permissions of mode '0000' aren't permitted")
+				}
+			if mode > 07777 {
+				return nil, ParseError(scanner, "Permissions of mode greater than '7777' aren't permitted")
+				}
 			attributes.permissions = mode
 			token, _ = scanner.ScanNext()
 			if token != ";" {

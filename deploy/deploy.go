@@ -23,6 +23,12 @@ import (
 	)
 
 
+const globalVersion    = "1.00.001"
+var   globalSSHPath    = ""
+var   globalRsyncPath  = ""
+var   globalDeployUser = "borg"
+
+
 var (
 	flagDryRun bool = false
 	flagForceRun bool = false
