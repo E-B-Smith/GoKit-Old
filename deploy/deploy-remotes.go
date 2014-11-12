@@ -7,6 +7,8 @@ package main
 
 
 func SSHCommand(remoteHost string, command string) (result string, error error) {
+	//	ssh -o StrictHostKeyChecking=no
+	
 	return "", nil
 	}
 
@@ -39,6 +41,7 @@ func CheckRemoteHostsForOwnersAndGroups(group DeployGroup) error {
 
 func CopyFileToRemoteHosts(group DeployGroup) error {
 	//	rsync files to remote.
+	//	rsync -vutzr -e 'ssh -o StrictHostKeyChecking=no' --chmod u=rwx,go-rwx --delete --force --exclude '.*' --progress --partial
 
 	for i := 0; i < len(group.deployItems); i++ {
 
