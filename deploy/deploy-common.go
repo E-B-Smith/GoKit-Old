@@ -14,23 +14,14 @@ import (
 	)
 
 
-type DUResultCode int 
+type ZLogLevel string
 const (
-	DUResultSuccess = 0
-	DUResultWarning = 1
-	DUResultError   = 2
-	DUResultNotInstalled = 3
-	)
-
-
-type DULogLevel string
-const (
-	DULogDebug   = "Debug"
-	DULogInfo	 = " Info"
-	DULogStart   = "Start"
-	DULogExit    = " Exit"
-	DULogWarning = " Warn"
-	DULogError   = "Error"
+	ZLogDebug   = "Debug"
+	ZLogInfo	 = " Info"
+	ZLogStart   = "Start"
+	ZLogExit    = " Exit"
+	ZLogWarning = " Warn"
+	ZLogError   = "Error"
 	)
 
 
@@ -46,4 +37,3 @@ func log(logLevel DULogLevel, format string, args ...interface{}) {
 	var message = fmt.Sprintf(format, args...)
 	fmt.Fprintf(os.Stderr, "%16s:%-4d %s %s\n", filename[:i], linenumber, logLevel, message)
 	}
-
