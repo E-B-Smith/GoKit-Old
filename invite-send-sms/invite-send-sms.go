@@ -8,91 +8,115 @@ package main
 
 import (
 	"os"
-	"bufio"
+	"fmt"
 	"strings"
-    "strconv"
+	"io/ioutil"
+	"net/url"
+	"net/http"
+	"encoding/base64"    
 	)
 
-// function percentEscapeString()
-// 	{
-// 	perl -lpe 's/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg' <<<"$1"
-// 	}
 
-// twiliokey=AC6d456d2e0a49aad0d6ec1a92ddbd925f
-// twiliosecret=3191a48e7faa540b4c7b6e84c9a82402
-// twiliofrom=16072694306
-// twilioto=6503916685   # Rohit
-// #twilioto=2404856540   # Sap
-// #twilioto=4086379251  # Hemant
-// #twilioto=4156152570  # Edward
-// encodedauth=$(echo "$twiliokey:$twiliosecret" | base64)
-// body="McD is still better."
-// body=$(percentEscapeString "$body")
+var (
+	twilioKey="AC6d456d2e0a49aad0d6ec1a92ddbd925f"
+	twilioSecret="3191a48e7faa540b4c7b6e84c9a82402"
+	twilioEncodedAuth=""
+	twilioFromNumber="16072694306"
+	twilioUrlString="https://api.twilio.com/2010-04-01/Accounts/"+twilioKey+"/Messages"
+	)
 
-// curl -X POST \
-//     --insecure --retry 3 --silent --show-error \
-//     -H "Authorization: Basic $encodedauth" \
-//     --data "From=$twiliofrom&To=$twilioto&Body=$body" \
-//         "https://api.twilio.com/2010-04-01/Accounts/$twiliokey/Messages"
 
-// echo ""
+func SendSMS(toNumber string, message string) error {
+	//	Send a Twilio message to a phone number.
 
-func insertItemsInFile(file *os.File) {
-	var linecount = 0
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		linecount++
-		var platform = 0
-		fields := strings.Fields(scanner.Text())
-		if len(fields) == 0 {
-			continue
-			}
-		if len(fields) >= 2 {
-			platform, _ = strconv.Atoi(fields[1])
-			}
-		if platform < 1 || platform > 2 {
-			ZLog(ZLogError, "Line %d. Expected 'InviteID'<white-space>'platformID' on the same line.", linecount)
-			os.Exit(1)
-			}
-		
-		_, error := globalDatabase.Exec("insert into AvailableInviteTable (inviteID, platformType) values (?, ?);", fields[0], platform)
-		if error != nil {
-			ZLog(ZLogError, "Line %d. Can't inserting record.\n%v", error)
-			os.Exit(1)
-			}
+	if twilioEncodedAuth == "" {
+		twilioEncodedAuth = "Basic "+base64.StdEncoding.EncodeToString([]byte(twilioKey+":"+twilioSecret))
 		}
+
+	formValues := url.Values{}
+	formValues.Set("From", twilioFromNumber)
+	formValues.Set("To", toNumber)
+	formValues.Set("Body", message)
+
+	request, _ := http.NewRequest("POST", twilioUrlString, strings.NewReader(formValues.Encode()))	
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+ 	request.Header.Add("Authorization", twilioEncodedAuth)
+	ZLog(ZLogDebug, "Request:\n%v", request)
+
+	client := &http.Client{}
+    response, error := client.Do(request)
+    if error != nil {
+        ZLog(ZLogError, "Can't contact Twilio: %v.", error)
+    	}
+    defer response.Body.Close()
+    body, _ := ioutil.ReadAll(response.Body)
+
+	ZLog(ZLogDebug, "Response:\n%v", response)
+	ZLog(ZLogDebug, " Headers:\n%v", response.Header)
+	ZLog(ZLogDebug, "    Body:\n%v", string(body))
+
+	return error
 	}
+
+
+/*
+create type UserStatus as enum
+    (
+     'UserStatusUnknown'             = 0
+    ,'UserStatusPending'             = 1
+    ,'UserStatusAccepted'            = 2
+    ,'UserStatusSendInvite'          = 3
+    ,'UserStatusInvited'             = 4
+    ,'UserStatusDownloadFailed'      = 5
+    ,'UserStatusDownloaded'          = 6
+    ,'UserStatusFirstRun'            = 7
+    ,'UserStatusActive'              = 8
+    ,'UserStatusBlocked'             = 9
+    ,'UserStatusSessionInvalid'      = 10
+    );
+*/
 
 
 func main() {
-	//	Process files on the command line or stdin -- 
+	//	Send an email to each user with status 'UserStatusSendInvite' -- 
 
 	error := connectDatabase()
-	if error != nil {
-		os.Exit(1)
-	}
+	if error != nil { os.Exit(1) }
 	defer disconnectDatabase()
 
-	if len(os.Args) <= 1 {
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			ZLog(ZLogDebug, "Reading from stdin.")
-			insertItemsInFile(os.Stdin)
-		} else {
-			ZLog(ZLogError, "Can't open stdin.")
+	smsMessage := "Relcy beta has arrived.\nDownload the beta at\nhttps://relcy.com/invite?claim=%s"
+		//	" ".   Send feedback at " "
+
+	queryString := "select userID, phone, name, linkHashFromUserID(userID) from UserAnalyticsTable where userStatus = 3 and phone is not NULL;"
+	rows, error := globalDatabase.Query(queryString)
+
+	if error != nil {
+		ZLog(ZLogDebug, "Can't read rows.\n%v", error)
+		os.Exit(1)
 		}
-	} else  {
-		for i:= 0; i < len(os.Args); i++ {
-			ZLog(ZLogDebug, "Reading '%s'...", os.Args[i])
-			var file *os.File = nil
-			file, error = os.Open(os.Args[i])
-			if error != nil {
-	            ZLog(ZLogError, "Error: Can't open file '%s' for reading: %v.", os.Args[i], error)
-	            os.Exit(1)
-	        	}
-			defer file.Close()
-			insertItemsInFile(file)
+	defer rows.Close()
+
+	var (count int; errorCount int)
+	for rows.Next() {
+		var (userID string; phone string; name string; hash string)
+		error := rows.Scan(&userID, &phone, &name, &hash)
+		if error != nil {
+			errorCount++
+			continue
+		}
+		ZLog(ZLogDebug, "Sending SMS to %s.", name)
+		error = SendSMS(phone, fmt.Sprintf(smsMessage, hash))
+		if error != nil {
+			errorCount++
+			ZLog(ZLogDebug, "Can't send SMS to %s.\n%v", error)
+			continue
 			}
+		count++
+		updateString := "update UserAnalyticsTable set userStatus=4 where userID=?;"
+		_, error = globalDatabase.Exec(updateString, userID)
+		if error != nil { ZLog(ZLogWarning, "User %s status not updated.\n%v", userID, error) }
 		}
+	ZLog(ZLogInfo, "Sent %d messages, %d errors.", count, errorCount)
 	}
+
 

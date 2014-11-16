@@ -56,7 +56,7 @@ func main() {
 			ZLog(ZLogDebug, "Reading from stdin.")
 			insertItemsInFile(os.Stdin)
 		} else {
-			ZLog(ZLogError, "Can't open stdin.")
+			ZLog(ZLogError, "Can't read stdin.")
 		}
 	} else  {
 		for i:= 0; i < len(os.Args); i++ {
