@@ -1,4 +1,4 @@
-//  deploy  -  deploy a set of files across a set of servers.
+//  z/log  -  Simple logging.
 //
 //  E.B.Smith  -  November, 2014
 
@@ -11,8 +11,6 @@ import (
 	"os"
 	"runtime"
 	"path"
-//	_ "github.com/go-sql-driver/mysql"
-//	"violent.blue/go/log"
 	)
 
 
@@ -25,19 +23,18 @@ const (
 	LevelWarning
 	LevelError
 	)
-
-
-MessageLevelNames := []string { 
-	 "Debug"
-	,"Start"
-	," Exit"
-	," Info"
-	," Warn"
-	,"Error"
-	}
-
+	
 
 func LogRaw(messageLevel MessageLevel, format string, args ...interface{}) {
+
+    MessageLevelNames := []string { 
+        "Debug",
+        "Start",
+        " Exit",
+        " Info",
+        " Warn",
+        "Error", 
+        }
 
 	if messageLevel < 0 || messageLevel > LevelError { messageLevel = LevelError }
 
@@ -53,15 +50,10 @@ func LogRaw(messageLevel MessageLevel, format string, args ...interface{}) {
 	}
 
 
-func Debug(format string, args ...interface{}) {
-	LogRaw(LevelDebug, format, args)
-	}
+func Debug(format string, args ...interface{}) 			{ LogRaw(LevelDebug, format, args) }
+func Start(format string, args ...interface{}) 			{ LogRaw(LevelStart, format, args) }
+func Exit(format string, args ...interface{}) 			{ LogRaw(LevelExit, format, args) }
+func Info(format string, args ...interface{}) 			{ LogRaw(LevelInfo, format, args) }
+func Warn(format string, args ...interface{}) 			{ LogRaw(LevelWarning, format, args) }
+func Error(format string, args ...interface{}) 			{ LogRaw(LevelError, format, args) }
 
-
-log.Debug()
-log.Info("This is my info message: %v.", error)
-log.Warning()
-
-struct log {
-
-	}
