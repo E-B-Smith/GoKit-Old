@@ -28,10 +28,39 @@ var DatabaseUser		= ""
 var DatabasePost		= 5432
 
 
-func ConnectDatabase() error {
+func ConnectDatabase(databaseURI string) error {
 	//
 	//	Start the database --
 	//
+
+    if databaseURI != "" {
+        u, error := url.Parse(databaseURI)
+        if error != nil {
+            return error
+        } else {
+        if u == nil {
+            return errors.New("Invalid database URI")
+            }}
+
+        log.Debug("%s:\n%v", databaseURI, u)
+
+        i := strings.IndexRune(u.Host, ':')
+        if i >= 0 {
+            Host = u.Host[0:i]
+            Port, _ = strconv.Atoi(u.Host[i+1:])
+            }
+        if Port <= 0 { Port = 3306 }
+        log.Debug("Host: %s Port: %d User: %v.", Host, Port, u.User)
+        if u.User == nil {
+            User = ""
+            Password = ""
+        } else {
+            User = u.User.Username()
+            Password, _ = u.User.Password()
+            Name = u.Path
+            }
+        }
+
 
 	//	Find postgres --
 
