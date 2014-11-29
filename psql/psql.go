@@ -10,7 +10,11 @@ import (
 	"io"
 	"sync"
 	"bufio"
+	"errors"
+	"strings"
+	"strconv"
 	"os/exec"
+	"net/url"
 	"database/sql"
 	_ "github.com/lib/pq"
 	"violent.blue/go/log"
@@ -22,10 +26,11 @@ var PSQLPath string 	= ""
 var PSQLDataPath string = ""
 var DB *sql.DB			= nil
 
-var DatabaseName		= ""
-var DatabaseHost        = ""
-var DatabaseUser		= ""
-var DatabasePost		= 5432
+var Name		= ""
+var Host        = "localhost"
+var User		= "postgres"
+var Password	= ""
+var Port		= 5432
 
 
 func ConnectDatabase(databaseURI string) error {
@@ -41,26 +46,31 @@ func ConnectDatabase(databaseURI string) error {
         if u == nil {
             return errors.New("Invalid database URI")
             }}
-
         log.Debug("%s:\n%v", databaseURI, u)
+
+        if u.Scheme == "db" || u.Scheme == "psql" || u.Scheme == "sql" {
+        } else {
+        	log.Error("Invalid database scheme '%s'", u.Scheme)
+        	return errors.New("Invalid scheme")
+        	}
 
         i := strings.IndexRune(u.Host, ':')
         if i >= 0 {
             Host = u.Host[0:i]
             Port, _ = strconv.Atoi(u.Host[i+1:])
             }
-        if Port <= 0 { Port = 3306 }
-        log.Debug("Host: %s Port: %d User: %v.", Host, Port, u.User)
+        if Port <= 0 { Port = 5432 }
         if u.User == nil {
             User = ""
             Password = ""
         } else {
             User = u.User.Username()
             Password, _ = u.User.Password()
-            Name = u.Path
             }
+        Name = u.Path
+        if len(Name) > 1 && Name[0:1] == "/" { Name = Name[1:] }
+        log.Debug("Host: %s Port: %d User: %s Pass: %s Name: %s.", Host, Port, User, Password, Name)
         }
-
 
 	//	Find postgres --
 
@@ -77,7 +87,6 @@ func ConnectDatabase(databaseURI string) error {
 	error = command.Run()
 	if command.ProcessState.Sys() == 3 {
 		log.Debug("Starting Postgres")
-
 		command = exec.Command(PGCTLPath, "start", "-w", "-s", "-D", PSQLDataPath)
 		error = command.Run()
 		if error != nil {
@@ -105,6 +114,8 @@ func ConnectDatabase(databaseURI string) error {
 
 	//	Make a connection --
 
+
+
 	DB, error = sql.Open("postgres", "user=Edward dbname=Edward sslmode=disable")
 	if error != nil {
 		DB = nil
@@ -120,10 +131,10 @@ func DisconnectDatabase() {
 	if  DB != nil {
 		DB.Close()
 		DB = nil
-		DatabaseHost = "localhost"
-		DatabasePort = 5432
-		DatabaseName = "postgres"
-		DatabaseUser = "postgres"
+		Host = "localhost"
+		Port = 5432
+		Name = "postgres"
+		User = "postgres"
 		}
 	}
 
