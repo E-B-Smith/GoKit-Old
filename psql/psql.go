@@ -214,3 +214,13 @@ func RunScript(script string) error {
     }
 
 
+func ToArray(ary []string) string {
+    var result string = "{"
+
+    for i:=0; i < len(ary); i++ {
+        result += ary[i]
+    }
+    result += "}"
+    return result
+}
+
