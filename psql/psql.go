@@ -82,20 +82,27 @@ func ConnectDatabase(databaseURI string) error {
         return error
         }
     log.Debug("   Found pg_ctl: %v.", PGCTLPath)
-    log.Debug("Using data path: %v.", PSQLDataPath)
-
-//  command := exec.Command(PGCTLPath, "status", "-D",  PSQLDataPath)
-    command := exec.Command(PGCTLPath, "status")
+    var command *exec.Cmd
+    if len(PSQLDataPath) > 0 {
+        log.Debug("Using data path: %v.", PSQLDataPath)
+        command = exec.Command(PGCTLPath, "status", "-D",  PSQLDataPath)
+    } else {
+        log.Debug("Using default datapath.")
+        command = exec.Command(PGCTLPath, "status")
+    }
     error = command.Run()
     if command.ProcessState.Sys() == 3 {
         log.Debug("Starting Postgres")
-//      command = exec.Command(PGCTLPath, "start", "-w", "-s", "-D", PSQLDataPath)
-        command = exec.Command(PGCTLPath, "start", "-w", "-s")
+        if len(PSQLDataPath) > 0 {
+           command = exec.Command(PGCTLPath, "start", "-w", "-s", "-D", PSQLDataPath)
+        } else {
+           command = exec.Command(PGCTLPath, "start", "-w", "-s")
+        }
         error = command.Run()
         if error != nil {
             log.Error("Can't start Postgress: %v.", error)
             return error
-            }
+        }
     } else {
         log.Debug("Postgres is already started.")
     }
@@ -126,7 +133,7 @@ func ConnectDatabase(databaseURI string) error {
         DB = nil
         log.Error("Error: Can't open database connection: %v.", error);
         return error
-        }
+    }
 
     //  Get our settings --
     //  select setting from pg_settings where name = 'port';
@@ -143,7 +150,7 @@ func ConnectDatabase(databaseURI string) error {
     }
 
     return nil
-    }
+}
 
 
 func DisconnectDatabase() {
@@ -154,8 +161,8 @@ func DisconnectDatabase() {
         Port = 5432
         Name = "postgres"
         User = "postgres"
-        }
     }
+}
 
 
 func RunScript(script string) error {
@@ -170,14 +177,14 @@ func RunScript(script string) error {
         "-X", "-q",
         "-v", "ON_ERROR_STOP=1",
         "--pset", "pager=off",
-        }
+    }
     command := exec.Command(PSQLPath, psqlOptions...)
     command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
     commandpipe, error := command.StdinPipe()
     if error != nil {
         log.Error("Can't open pipe: %v", error)
         return error
-        }
+    }
 
     var errorpipe *io.PipeReader;
     errorpipe, command.Stderr = io.Pipe()
@@ -186,7 +193,7 @@ func RunScript(script string) error {
     if error != nil {
         log.Error("Error running psql: %v.", error)
         return error
-        }
+    }
 
     commandpipe.Write([]byte(script))
     commandpipe.Close()
@@ -197,9 +204,9 @@ func RunScript(script string) error {
         scanner := bufio.NewScanner(errorpipe)
         for scanner.Scan() {
             log.Error("%v.", scanner.Text())
-            }
+        }
         waiter.Done()
-        } ()
+    } ()
 
     error = command.Wait()
     errorpipe.Close()
@@ -208,10 +215,10 @@ func RunScript(script string) error {
     if error != nil {
         log.Error("Script %v.", error)
         return error
-        }
+    }
 
     return nil
-    }
+}
 
 
 func ToArray(ary []string) string {
