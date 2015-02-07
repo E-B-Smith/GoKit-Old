@@ -221,11 +221,14 @@ func RunScript(script string) error {
 }
 
 
-func ToArray(ary []string) string {
-    var result string = "{"
+func ArrayFromStrings(ary []string) string {
+    if len(ary) == 0 {
+        return "{}"
+    }
 
-    for i:=0; i < len(ary); i++ {
-        result += ary[i]
+    var result string = "{"+ary[0];
+    for i:=1; i < len(ary); i++ {
+        result += ","+ary[i]
     }
     result += "}"
     return result
