@@ -221,7 +221,7 @@ func RunScript(script string) error {
 }
 
 
-func ArrayFromStrings(ary []string) string {
+func StringFromArray(ary []string) string {
     if len(ary) == 0 {
         return "{}"
     }
@@ -232,5 +232,16 @@ func ArrayFromStrings(ary []string) string {
     }
     result += "}"
     return result
+}
+
+func ArrayFromString(s *string) []string {
+    if s == nil { return *new([]string) }
+
+    str := strings.Trim(*s, "{}")
+    a := make([]string, 0, 10)
+    for _, ss := range strings.Split(str, ",") {
+        a = append(a, ss)
+    }
+    return a
 }
 

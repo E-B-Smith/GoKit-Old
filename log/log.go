@@ -47,6 +47,18 @@ func PrettyStackString(stackLevel int) string {
 }
 
 
+func LogFunctionName() {
+    pc, filename, linenumber, _ := runtime.Caller(1)
+    filename = path.Base(filename)
+    i := len(filename)
+    if i > 26 {
+        i = 26
+    }
+    message := fmt.Sprintf("function %s.", runtime.FuncForPC(pc).Name())
+    fmt.Fprintf(os.Stderr, "%26s:%-4d %s %s\n", filename[:i], linenumber, " Info", message)
+}
+
+
 func logRaw(logLevel LogLevel, format string, args ...interface{}) {
 
     LevelNames := []string {
