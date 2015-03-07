@@ -7,32 +7,49 @@ package log
 
 
 import (
-    "fmt"
+    "io"
     "os"
+    "fmt"
+    "syscall"
     "runtime"
     "path"
     )
 
 
-type LogLevel int
+type LogLevelType int
 const (
-    LevelDebug LogLevel = iota
+    LevelDebug LogLevelType = iota
     LevelStart
     LevelExit
     LevelInfo
     LevelWarning
     LevelError
+    LevelAll = LevelDebug
     )
 
 
-var MinLogLevel = LevelDebug
+var LogLevel    LogLevelType    = LevelDebug
+var logWriter   io.WriteCloser  = os.Stderr
+
+
+func SetFilename(filename string) {
+    if logWriter.Close != nil { logWriter.Close() }
+    var error error
+    var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
+    var mode os.FileMode = os.ModeAppend | os.ModePerm
+    logWriter, error = os.OpenFile(filename, flags, mode)
+    if error != nil {
+        logWriter = os.Stderr
+        Error("Error: Can't open log file '%s' for reading: %v.", filename, error)
+    }
+}
 
 
 func StackWithError(error interface{}) {
     trace := make([]byte, 1024)
     count := runtime.Stack(trace, true)
-    fmt.Fprintf(os.Stderr, "Panic!! '%v'.\n", error)
-    fmt.Fprintf(os.Stderr, "Stack of %d bytes: %s\n", count, trace)
+    fmt.Fprintf(logWriter, "Panic!! '%v'.\n", error)
+    fmt.Fprintf(logWriter, "Stack of %d bytes: %s\n", count, trace)
 }
 
 
@@ -55,11 +72,11 @@ func LogFunctionName() {
         i = 26
     }
     message := fmt.Sprintf("function %s.", runtime.FuncForPC(pc).Name())
-    fmt.Fprintf(os.Stderr, "%26s:%-4d %s %s\n", filename[:i], linenumber, " Info", message)
+    fmt.Fprintf(logWriter, "%26s:%-4d %s %s\n", filename[:i], linenumber, " Info", message)
 }
 
 
-func logRaw(logLevel LogLevel, format string, args ...interface{}) {
+func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
 
     LevelNames := []string {
         "Debug",
@@ -70,7 +87,7 @@ func logRaw(logLevel LogLevel, format string, args ...interface{}) {
         "Error",
     }
 
-    if logLevel < MinLogLevel { return }
+    if logLevel < LogLevel { return }
     if logLevel < LevelDebug || logLevel > LevelError { logLevel = LevelError }
 
     _, filename, linenumber, _ := runtime.Caller(2)
@@ -81,7 +98,7 @@ func logRaw(logLevel LogLevel, format string, args ...interface{}) {
     }
 
     var message = fmt.Sprintf(format, args...)
-    fmt.Fprintf(os.Stderr, "%26s:%-4d %s %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
+    fmt.Fprintf(logWriter, "%26s:%-4d %s %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
 }
 
 
