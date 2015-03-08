@@ -9,10 +9,12 @@ package Scanner
 import (
     "os"
     "fmt"
+    "path"
     "bytes"
     "bufio"
     "unicode"
     "errors"
+    "strings"
     "strconv"
 )
 
@@ -32,6 +34,7 @@ func NewScanner(file *os.File) *Scanner {
     scanner.file = file
     scanner.reader = bufio.NewReader(file)
     scanner.lineNumber = 1
+    scanner.token = ""
     return scanner
 }
 
@@ -52,7 +55,30 @@ func (scanner *Scanner) IsAtEnd() bool {
 
 
 func (scanner *Scanner) Token() string {
-    return scanner.token;
+    return scanner.token
+}
+
+
+func (scanner *Scanner) LastError() error {
+    return scanner.error
+}
+
+
+func (scanner *Scanner) SetErrorMessage(message string) error {
+    basename := path.Base(scanner.FileName())
+    message = fmt.Sprintf("%s:%d Scanned '%s'. %s",
+            basename, scanner.LineNumber(), scanner.Token(), message)
+    scanner.error = errors.New(message)
+    return scanner.error
+}
+
+
+func (scanner *Scanner) SetError(error error) error {
+    basename := path.Base(scanner.FileName())
+    message := fmt.Sprintf("%s:%d Scanned '%s'. %v",
+            basename, scanner.LineNumber(), scanner.Token(), error)
+    scanner.error = errors.New(message)
+    return scanner.error
 }
 
 
@@ -82,7 +108,8 @@ func ZIsLineFeed(r rune) bool {
     }
 
 
-func (scanner *Scanner) ScanSpaces() (token string, error error) {
+func (scanner *Scanner) ScanSpaces() error {
+    scanner.token = ""
     for ! scanner.IsAtEnd() {
         var r rune
         r, _, scanner.error = scanner.reader.ReadRune()
@@ -103,10 +130,10 @@ func (scanner *Scanner) ScanSpaces() (token string, error error) {
             }
 
         scanner.reader.UnreadRune()
-        return "", nil
+        return nil
         }
 
-    return "", scanner.error;
+    return scanner.error;
     }
 
 
@@ -117,7 +144,7 @@ func IsValidStringRune(r rune) bool {
 
 
 func (scanner *Scanner) ScanString() (next string, error error) {
-    _, error = scanner.ScanSpaces()
+    error = scanner.ScanSpaces()
 
     var (r rune; buffer bytes.Buffer)
     r, _, scanner.error = scanner.reader.ReadRune()
@@ -133,7 +160,7 @@ func (scanner *Scanner) ScanString() (next string, error error) {
     }
 
 
-func (scanner *Scanner) ScanInteger() (int int, error error) {
+func (scanner *Scanner) ScanInt() (int int, error error) {
     scanner.ScanSpaces()
     var r rune
     r, _, scanner.error = scanner.reader.ReadRune()
@@ -141,7 +168,7 @@ func (scanner *Scanner) ScanInteger() (int int, error error) {
     if ! unicode.IsDigit(r) {
         scanner.reader.UnreadRune()
         scanner.token, _ = scanner.ScanNext()
-        return 0, errors.New("Integer expected")
+        return 0, scanner.SetErrorMessage("Integer expected")
         }
 
     var buffer bytes.Buffer
@@ -156,31 +183,21 @@ func (scanner *Scanner) ScanInteger() (int int, error error) {
     }
 
 
-func (scanner *Scanner) ScanNext() (next string, error error) {
-    scanner.ScanSpaces()
-    var r rune
-    r, _, scanner.error = scanner.reader.ReadRune()
+func (scanner *Scanner) ScanBool() (value bool, error error) {
+    var s string
+    s, scanner.error = scanner.ScanNext()
+    if scanner.error != nil { return false, scanner.error }
 
-    if r == '"' {
-        return scanner.ScanQuotedString()
-        }
-
-    if unicode.IsPunct(r) {
-        var buffer bytes.Buffer
-        buffer.WriteRune(r)
-        scanner.token = buffer.String()
-        return scanner.token, nil
-        }
-
-    if unicode.IsDigit(r) {
-        scanner.reader.UnreadRune()
-        scanner.ScanInteger()
-        return scanner.token, scanner.error
-        }
-
-    scanner.reader.UnreadRune()
-    return scanner.ScanString()
+    s = strings.ToLower(s)
+    if s == "true" || s == "yes" || s == "t" || s == "y" || s == "1" {
+        return true, nil
     }
+    if s == "false" || s == "no" || s == "f" || s == "n" || s == "0" {
+        return false, nil
+    }
+    scanner.SetErrorMessage("Expected a boolean value")
+    return false, scanner.error
+}
 
 
 func (scanner *Scanner) ScanIdentifier() (identifier string, error error) {
@@ -194,7 +211,7 @@ func (scanner *Scanner) ScanIdentifier() (identifier string, error error) {
     if ! IsValidIdentifierStartRune(r) {
         scanner.reader.UnreadRune()
         scanner.ScanNext()
-        return "", errors.New("Identifier expected")
+        return "", scanner.SetErrorMessage("Expected an identifier")
         }
 
     var buffer bytes.Buffer
@@ -217,14 +234,14 @@ func (scanner *Scanner) ScanOctal() (Integer int, error error) {
     if ! IsOctalDigit(r) {
         scanner.reader.UnreadRune()
         scanner.token, _ = scanner.ScanNext()
-        return 0, errors.New("Octal number expected")
-        }
+        return 0, scanner.SetErrorMessage("Octal number expected")
+    }
 
     var buffer bytes.Buffer
     for IsOctalDigit(r) {
         buffer.WriteRune(r)
         r, _, scanner.error = scanner.reader.ReadRune()
-        }
+    }
     scanner.reader.UnreadRune()
 
     scanner.token = buffer.String()
@@ -240,15 +257,40 @@ func (scanner *Scanner) ScanQuotedString() (string, error) {
 
     if r != '"' {
         scanner.token = string(r)
-        return "", errors.New("Quoted string expected")
-        }
+        return "", scanner.SetErrorMessage("Quoted string expected")
+    }
     scanner.reader.UnreadRune()
 
-    var result string
-    parseCount, error := fmt.Fscanf(scanner.reader, "%q", result)
-    if error != nil { return "", error }
-    if parseCount != 1 { return "", errors.New("Quoted string expected") }
+    parseCount, error := fmt.Fscanf(scanner.reader, "%q", &scanner.token)
+    if error != nil { return "", scanner.SetError(error) }
+    if parseCount != 1 { return "", scanner.SetErrorMessage("Quoted string expected") }
 
-    return result, nil
+    return scanner.token, nil
 }
+
+
+func (scanner *Scanner) ScanNext() (next string, error error) {
+    scanner.ScanSpaces()
+    var r rune
+    r, _, scanner.error = scanner.reader.ReadRune()
+
+    if r == '"' {
+        scanner.reader.UnreadRune()
+        return scanner.ScanQuotedString()
+    }
+    if unicode.IsPunct(r) {
+        var buffer bytes.Buffer
+        buffer.WriteRune(r)
+        scanner.token = buffer.String()
+        return scanner.token, nil
+    }
+    if unicode.IsDigit(r) {
+        scanner.reader.UnreadRune()
+        scanner.ScanInt()
+        return scanner.token, scanner.error
+    }
+
+    scanner.reader.UnreadRune()
+    return scanner.ScanString()
+    }
 

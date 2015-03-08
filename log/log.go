@@ -18,22 +18,60 @@ import (
 
 type LogLevelType int
 const (
-    LevelDebug LogLevelType = iota
+    LevelInvalid LogLevelType = iota
+    LevelAll
+    LevelDebug
     LevelStart
     LevelExit
     LevelInfo
     LevelWarning
     LevelError
-    LevelAll = LevelDebug
     )
+var levelNames = []string{
+    "LevelInvalid",
+    "LevelAll",
+    "LevelDebug",
+    "LevelStart",
+    "LevelExit",
+    "LevelInfo",
+    "LevelWarning",
+    "LevelError",
+    }
 
 
 var LogLevel    LogLevelType    = LevelDebug
 var logWriter   io.WriteCloser  = os.Stderr
 
 
+func LogLevelFromString(s string) LogLevelType {
+    for index := range levelNames {
+        if s == levelNames[index] {
+            return LogLevelType(index)
+        }
+    }
+    return LevelInvalid
+}
+
+
+func StringFromLogLevel(level LogLevelType) string {
+    if level < LevelInvalid || level > LevelError {
+        return levelNames[LevelInvalid]
+    } else {
+        return levelNames[level]
+    }
+}
+
+
 func SetFilename(filename string) {
-    if logWriter.Close != nil { logWriter.Close() }
+    if  logWriter.Close != nil &&
+        logWriter != os.Stderr &&
+        logWriter != os.Stdout {
+        logWriter.Close()
+    }
+    if len(filename) <= 0 {
+        logWriter = os.Stderr
+        return
+    }
     var error error
     var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
     var mode os.FileMode = os.ModeAppend | os.ModePerm
@@ -79,6 +117,8 @@ func LogFunctionName() {
 func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
 
     LevelNames := []string {
+        "Inval",
+        "  All",
         "Debug",
         "Start",
         " Exit",
