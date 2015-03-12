@@ -110,7 +110,7 @@ func LogFunctionName() {
         i = 26
     }
     message := fmt.Sprintf("function %s.", runtime.FuncForPC(pc).Name())
-    fmt.Fprintf(logWriter, "%26s:%-4d %s %s\n", filename[:i], linenumber, " Info", message)
+    fmt.Fprintf(logWriter, "%26s:%-4d %s: %s\n", filename[:i], linenumber, " Info", message)
 }
 
 
@@ -138,7 +138,7 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
     }
 
     var message = fmt.Sprintf(format, args...)
-    fmt.Fprintf(logWriter, "%26s:%-4d %s %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
+    fmt.Fprintf(logWriter, "%26s:%-4d %s: %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
 }
 
 
