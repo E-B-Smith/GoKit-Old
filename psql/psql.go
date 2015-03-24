@@ -27,11 +27,11 @@ var PSQLPath string     = ""
 var PSQLDataPath string = ""
 var DB *sql.DB          = nil
 
-var Name        = ""
-var Host        = "localhost"
-var User        = "postgres"
-var Password    = ""
-var Port        = 5432
+var Databasename = ""
+var Host         = "localhost"
+var Username     = "postgres"
+var Password     = ""
+var Port         = 5432
 
 
 func ConnectDatabase(databaseURI string) error {
@@ -62,15 +62,15 @@ func ConnectDatabase(databaseURI string) error {
             }
         if Port <= 0 { Port = 5432 }
         if u.User == nil {
-            User = ""
+            Username = ""
             Password = ""
         } else {
-            User = u.User.Username()
+            Username = u.User.Username()
             Password, _ = u.User.Password()
             }
-        Name = u.Path
-        if len(Name) > 1 && Name[0:1] == "/" { Name = Name[1:] }
-        log.Debug("Host: %s Port: %d User: %s Pass: %s Name: %s.", Host, Port, User, Password, Name)
+        Databasename = u.Path
+        if len(Databasename) > 1 && Databasename[0:1] == "/" { Databasename = Databasename[1:] }
+        log.Debug("Host: %s Port: %d User: %s Pass: %s Databasename: %s.", Host, Port, Username, Password, Databasename)
         }
 
     //  Find postgres --
@@ -126,7 +126,7 @@ func ConnectDatabase(databaseURI string) error {
 
     connectString :=
         fmt.Sprintf("host=%s port=%d  dbname=%s user=%s password=%s sslmode=disable",
-                     Host, Port, Name, User, Password)
+                     Host, Port, Databasename, Username, Password)
     log.Debug("Connection string: %s.", connectString)
     DB, error = sql.Open("postgres", connectString)
     if error != nil {
@@ -159,8 +159,8 @@ func DisconnectDatabase() {
         DB = nil
         Host = "localhost"
         Port = 5432
-        Name = "postgres"
-        User = "postgres"
+        Databasename = "postgres"
+        Username = "postgres"
     }
 }
 
@@ -244,4 +244,91 @@ func ArrayFromString(s *string) []string {
     }
     return a
 }
+
+
+func RunScript2(script string) (standardOut []byte, standardError []byte, error error) {
+    //
+    //  Execute an SQL script --
+    //
+
+    psqlOptions := [] string {
+        "-X", "-q",
+        "-v", "ON_ERROR_STOP=1",
+        "--pset", "pager=off",
+    }
+    if Host == "" {
+        psqlOptions = append(psqlOptions, "-h", "localhost")
+    } else {
+        psqlOptions = append(psqlOptions, "-h", Host)
+    }
+    psqlOptions = append(psqlOptions, fmt.Sprintf("--port=%d", Port))
+    psqlOptions = append(psqlOptions, Databasename, Username)
+
+    command := exec.Command(PSQLPath, psqlOptions...)
+    command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
+    stdinpipe, error := command.StdinPipe()
+    if error != nil {
+        log.Error("Can't open StdIn pipe: %v.", error)
+        return standardOut, standardError, error
+    }
+
+    var waiter sync.WaitGroup
+    waiter.Add(2)
+
+    var errorpipe *io.PipeReader
+    errorpipe, command.Stderr = io.Pipe()
+    go func() {
+        buffer := make([]byte, 512)
+        reader := bufio.NewReader(errorpipe)
+        count, error := reader.Read(buffer)
+        //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        for error == nil {
+            standardError = append(standardError, buffer[:count]...)
+            count, error = reader.Read(buffer)
+            //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        }
+        waiter.Done()
+    } ()
+
+    var pipeout *io.PipeReader
+    pipeout, command.Stdout = io.Pipe()
+    go func () {
+        buffer := make([]byte, 512)
+        reader := bufio.NewReader(pipeout)
+        count, error := reader.Read(buffer)
+        //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        for error == nil {
+            standardOut = append(standardOut, buffer[:count]...)
+            count, error = reader.Read(buffer)
+            //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        }
+        waiter.Done()
+    } ()
+
+    _, error = stdinpipe.Write([]byte(script))
+    if error != nil {
+        log.Error("Error writing stdin: %v.", error)
+        return standardOut, standardError, error
+    }
+
+    error = command.Start()
+    if error != nil {
+        log.Error("Error starting psql: %v.", error)
+        return standardOut, standardError, error
+    }
+
+    stdinpipe.Close()
+    error = command.Wait()
+    errorpipe.Close()
+    pipeout.Close()
+    waiter.Wait()
+
+    if error != nil {
+        log.Error("Script wait error: %v.", error)
+        return standardOut, standardError, error
+    }
+
+    return standardOut, standardError, nil
+}
+
 
