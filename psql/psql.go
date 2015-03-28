@@ -140,6 +140,7 @@ func ConnectDatabase(databaseURI string) error {
     rows, error := DB.Query("select current_user, inet_server_addr(), inet_server_port(), current_database(), current_schema;")
     if error != nil {
         log.Error("Error querying database config: %v.", error)
+        return error
     } else {
         defer rows.Close()
         var (user string; host string; port int; database string; schema string)

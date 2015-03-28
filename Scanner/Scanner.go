@@ -87,25 +87,25 @@ func (scanner *Scanner) SetError(error error) error {
 
 func IsValidIdentifierStartRune(r rune) bool {
     return unicode.IsLetter(r) || r == '_'
-    }
+}
 
 
 func IsValidIdentifierRune(r rune) bool {
     return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
-    }
+}
 
 func IsOctalDigit(r rune) bool {
     return unicode.IsDigit(r) && r != '8' && r != '9'
-    }
+}
 
 func ZIsSpace(r rune) bool {
     return unicode.IsSpace(r) || r == '#'
-    }
+}
 
 
 func ZIsLineFeed(r rune) bool {
     return r == '\n' || r == '\u0085'
-    }
+}
 
 
 func (scanner *Scanner) ScanSpaces() error {
@@ -117,30 +117,28 @@ func (scanner *Scanner) ScanSpaces() error {
         if r == '#' {
             for !scanner.IsAtEnd() && !ZIsLineFeed(r) {
                 r, _, scanner.error = scanner.reader.ReadRune()
-                }
             }
-
+        }
         if ZIsLineFeed(r) {
             scanner.lineNumber++
             continue
-            }
-
+        }
         if ZIsSpace(r) {
             continue
-            }
+        }
 
         scanner.reader.UnreadRune()
         return nil
-        }
+    }
 
     return scanner.error;
-    }
+}
 
 
 func IsValidStringRune(r rune) bool {
     if r == ';' || r == ',' || ZIsSpace(r) { return false }
     return unicode.IsGraphic(r)
-    }
+}
 
 
 func (scanner *Scanner) ScanString() (next string, error error) {
@@ -157,7 +155,7 @@ func (scanner *Scanner) ScanString() (next string, error error) {
 
     scanner.token = buffer.String()
     return scanner.token, nil
-    }
+}
 
 
 func (scanner *Scanner) ScanInt() (int int, error error) {
@@ -180,7 +178,7 @@ func (scanner *Scanner) ScanInt() (int int, error error) {
 
     scanner.token = buffer.String()
     return  strconv.Atoi(scanner.token)
-    }
+}
 
 
 func (scanner *Scanner) ScanBool() (value bool, error error) {
@@ -223,7 +221,7 @@ func (scanner *Scanner) ScanIdentifier() (identifier string, error error) {
 
     scanner.token = buffer.String()
     return scanner.token, nil
-    }
+}
 
 
 func (scanner *Scanner) ScanOctal() (Integer int, error error) {
@@ -292,5 +290,21 @@ func (scanner *Scanner) ScanNext() (next string, error error) {
 
     scanner.reader.UnreadRune()
     return scanner.ScanString()
+}
+
+
+func (scanner *Scanner) ScanToEOL() (string, error) {
+    var (r rune; buffer bytes.Buffer)
+    r, _, scanner.error = scanner.reader.ReadRune()
+
+    for !scanner.IsAtEnd()  &&  !ZIsLineFeed(r) {
+        buffer.WriteRune(r)
+        r, _, scanner.error = scanner.reader.ReadRune()
     }
+    scanner.reader.UnreadRune()
+
+    scanner.token = buffer.String()
+    scanner.token = strings.TrimSpace(scanner.token)
+    return scanner.token, nil
+}
 
