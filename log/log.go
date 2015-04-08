@@ -148,4 +148,5 @@ func Exit(format string, args ...interface{})           { logRaw(LevelExit, form
 func Info(format string, args ...interface{})           { logRaw(LevelInfo, format, args...) }
 func Warning(format string, args ...interface{})        { logRaw(LevelWarning, format, args...) }
 func Error(format string, args ...interface{})          { logRaw(LevelError, format, args...) }
+func LogError(error error)                              { logRaw(LevelError, "%v.", error) }
 
