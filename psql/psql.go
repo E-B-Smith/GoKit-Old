@@ -9,7 +9,9 @@ package psql
 import (
     "io"
     "fmt"
+    "math"
     "sync"
+    "time"
     "bufio"
     "errors"
     "strings"
@@ -17,7 +19,7 @@ import (
     "os/exec"
     "net/url"
     "database/sql"
-    _ "github.com/lib/pq"
+    "github.com/lib/pq"
     "violent.blue/go/log"
     )
 
@@ -32,6 +34,9 @@ var Host         = "localhost"
 var Username     = "postgres"
 var Password     = ""
 var Port         = 5432
+
+var NegativeInfinityTime time.Time = time.Unix(math.MinInt64, 0)
+var PositiveInfinityTime time.Time = time.Unix(math.MaxInt64, 0)
 
 
 func ConnectDatabase(databaseURI string) error {
@@ -166,6 +171,37 @@ func DisconnectDatabase() {
 }
 
 
+func StringFromArray(ary []string) string {
+    if len(ary) == 0 {
+        return "{}"
+    }
+
+    var result string = "{"+ary[0];
+    for i:=1; i < len(ary); i++ {
+        result += ","+ary[i]
+    }
+    result += "}"
+    return result
+}
+
+func ArrayFromString(s *string) []string {
+    if s == nil { return *new([]string) }
+
+    str := strings.Trim(*s, "{}")
+    a := make([]string, 0, 10)
+    for _, ss := range strings.Split(str, ",") {
+        a = append(a, ss)
+    }
+    return a
+}
+
+
+
+//----------------------------------------------------------------------------------------
+//                                                                               RunScript
+//----------------------------------------------------------------------------------------
+
+
 func RunScript(script string) error {
 
     //
@@ -222,29 +258,10 @@ func RunScript(script string) error {
 }
 
 
-func StringFromArray(ary []string) string {
-    if len(ary) == 0 {
-        return "{}"
-    }
 
-    var result string = "{"+ary[0];
-    for i:=1; i < len(ary); i++ {
-        result += ","+ary[i]
-    }
-    result += "}"
-    return result
-}
-
-func ArrayFromString(s *string) []string {
-    if s == nil { return *new([]string) }
-
-    str := strings.Trim(*s, "{}")
-    a := make([]string, 0, 10)
-    for _, ss := range strings.Split(str, ",") {
-        a = append(a, ss)
-    }
-    return a
-}
+//----------------------------------------------------------------------------------------
+//                                                                              RunScript2
+//----------------------------------------------------------------------------------------
 
 
 func RunScript2(script string) (standardOut []byte, standardError []byte, error error) {
@@ -331,5 +348,22 @@ func RunScript2(script string) (standardOut []byte, standardError []byte, error 
 
     return standardOut, standardError, nil
 }
+
+
+
+//----------------------------------------------------------------------------------------
+//                                                                      EnableInfiniteTime
+//----------------------------------------------------------------------------------------
+
+
+var infinitySet bool = false
+
+func EnableInfiniteTime() {
+    if !infinitySet {               //  eDebug: Threading
+        infinitySet = true
+        pq.EnableInfinityTs(NegativeInfinityTime, PositiveInfinityTime)
+    }
+}
+
 
 
