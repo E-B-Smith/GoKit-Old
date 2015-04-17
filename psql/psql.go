@@ -9,7 +9,6 @@ package psql
 import (
     "io"
     "fmt"
-    "math"
     "sync"
     "time"
     "bufio"
@@ -35,8 +34,14 @@ var Username     = "postgres"
 var Password     = ""
 var Port         = 5432
 
-var NegativeInfinityTime time.Time = time.Unix(math.MinInt64, 0)
-var PositiveInfinityTime time.Time = time.Unix(math.MaxInt64, 0)
+var NegativeInfinityTime time.Time = time.Date(1500, time.January, 1, 0, 0, 0, 0, time.UTC)
+var PositiveInfinityTime time.Time = time.Date(2500, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+
+
+//----------------------------------------------------------------------------------------
+//                                                                         ConnectDatabase
+//----------------------------------------------------------------------------------------
 
 
 func ConnectDatabase(databaseURI string) error {
@@ -169,6 +174,12 @@ func DisconnectDatabase() {
         Username = "postgres"
     }
 }
+
+
+
+//----------------------------------------------------------------------------------------
+//                                                                                  Arrays
+//----------------------------------------------------------------------------------------
 
 
 func StringFromArray(ary []string) string {

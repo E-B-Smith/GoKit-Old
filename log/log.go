@@ -83,11 +83,11 @@ func SetFilename(filename string) {
 }
 
 
-func StackWithError(error interface{}) {
+func LogStackWithError(error interface{}) {
     trace := make([]byte, 1024)
     count := runtime.Stack(trace, true)
-    fmt.Fprintf(logWriter, "Panic!! '%v'.\n", error)
-    fmt.Fprintf(logWriter, "Stack of %d bytes: %s\n", count, trace)
+    logRaw(LevelError, "Error '%v':\n", error)
+    logRaw(LevelError, "Stack of %d bytes: %s\n", count, trace)
 }
 
 
@@ -111,6 +111,11 @@ func LogFunctionName() {
     }
     message := fmt.Sprintf("function %s.", runtime.FuncForPC(pc).Name())
     fmt.Fprintf(logWriter, "%26s:%-4d %s: %s\n", filename[:i], linenumber, " Info", message)
+}
+
+
+func FlushMessages() {
+    logWriter.Close()
 }
 
 
