@@ -182,7 +182,7 @@ func DisconnectDatabase() {
 //----------------------------------------------------------------------------------------
 
 
-func StringFromArray(ary []string) string {
+func StringFromStringArray(ary []string) string {
     if len(ary) == 0 {
         return "{}"
     }
@@ -195,13 +195,40 @@ func StringFromArray(ary []string) string {
     return result
 }
 
-func ArrayFromString(s *string) []string {
+
+func StringArrayFromString(s *string) []string {
     if s == nil { return *new([]string) }
 
     str := strings.Trim(*s, "{}")
     a := make([]string, 0, 10)
     for _, ss := range strings.Split(str, ",") {
         a = append(a, ss)
+    }
+    return a
+}
+
+
+func StringFromInt32Array(ary []int32) string {
+    if len(ary) == 0 {
+        return "{}"
+    }
+
+    var result string = "{"+strconv.Itoa(int(ary[0]));
+    for i:=1; i < len(ary); i++ {
+        result += ","+strconv.Itoa(int(ary[i]))
+    }
+    result += "}"
+    return result
+}
+
+func Int32ArrayFromString(s *string) []int32 {
+    if s == nil { return *new([]int32) }
+
+    str := strings.Trim(*s, "{}")
+    a := make([]int32, 0, 10)
+    for _, ss := range strings.Split(str, ",") {
+        i, error := strconv.Atoi(ss)
+        if error != nil { a = append(a, int32(i)) }
     }
     return a
 }
