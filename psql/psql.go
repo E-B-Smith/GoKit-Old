@@ -23,19 +23,58 @@ import (
     )
 
 
-var PGCTLPath string    = ""
-var PSQLPath string     = ""
-var PSQLDataPath string = ""
-var DB *sql.DB          = nil
 
-var Databasename = ""
-var Host         = "localhost"
-var Username     = "postgres"
-var Password     = ""
-var Port         = 5432
+//----------------------------------------------------------------------------------------
+//                                                                                    psql
+//----------------------------------------------------------------------------------------
+
+
+type PSQL struct {
+    PGCTLPath       string
+    PSQLPath        string
+    PSQLDataPath    string
+    DB              *sql.DB
+    Databasename    string
+    Host            string
+    Username        string
+    password        string
+    Port            int
+    infiniteTimeEnabled  bool
+}
+
+
+func DefaultValue() PSQL {
+    psql := PSQL {
+        PGCTLPath:      "",
+        PSQLPath:       "",
+        PSQLDataPath:   "",
+        DB:             nil,
+        Databasename:   "",
+        Host:           "localhost",
+        Username:       "postgres",
+        password:       "",
+        Port:           5432,
+        infiniteTimeEnabled: false,
+    }
+    return psql
+}
+
+
+
+//----------------------------------------------------------------------------------------
+//                                                                      EnableInfiniteTime
+//----------------------------------------------------------------------------------------
+
 
 var NegativeInfinityTime time.Time = time.Date(1500, time.January, 1, 0, 0, 0, 0, time.UTC)
 var PositiveInfinityTime time.Time = time.Date(2500, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+func (psql *PSQL) EnableInfiniteTime() {
+    if !psql.infiniteTimeEnabled {               //  eDebug: Threading
+        psql.infiniteTimeEnabled = true
+        pq.EnableInfinityTs(NegativeInfinityTime, PositiveInfinityTime)
+    }
+}
 
 
 
@@ -44,7 +83,7 @@ var PositiveInfinityTime time.Time = time.Date(2500, time.January, 1, 0, 0, 0, 0
 //----------------------------------------------------------------------------------------
 
 
-func ConnectDatabase(databaseURI string) error {
+func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
     //
     //  Start the database --
     //
@@ -52,105 +91,108 @@ func ConnectDatabase(databaseURI string) error {
     if databaseURI != "" {
         u, error := url.Parse(databaseURI)
         if error != nil {
-            return error
-        } else {
-        if u == nil {
-            return errors.New("Invalid database URI")
-            }}
+            return nil, error
+        } else if u == nil {
+            return nil, errors.New("Invalid database URI")
+        }
         log.Debug("%s:\n%v", databaseURI, u)
 
         if u.Scheme == "db" || u.Scheme == "psql" || u.Scheme == "sql" {
         } else {
             log.Error("Invalid database scheme '%s'", u.Scheme)
-            return errors.New("Invalid scheme")
-            }
+            return nil, errors.New("Invalid scheme")
+        }
 
         i := strings.IndexRune(u.Host, ':')
         if i >= 0 {
-            Host = u.Host[0:i]
-            Port, _ = strconv.Atoi(u.Host[i+1:])
-            }
-        if Port <= 0 { Port = 5432 }
-        if u.User == nil {
-            Username = ""
-            Password = ""
-        } else {
-            Username = u.User.Username()
-            Password, _ = u.User.Password()
-            }
-        Databasename = u.Path
-        if len(Databasename) > 1 && Databasename[0:1] == "/" { Databasename = Databasename[1:] }
-        log.Debug("Host: %s Port: %d User: %s Pass: %s Databasename: %s.", Host, Port, Username, Password, Databasename)
+            psql.Host = u.Host[0:i]
+            psql.Port, _ = strconv.Atoi(u.Host[i+1:])
         }
+        if psql.Port <= 0 { psql.Port = 5432 }
+        if u.User == nil {
+            psql.Username = ""
+            psql.password = ""
+        } else {
+            psql.Username = u.User.Username()
+            psql.password, _ = u.User.Password()
+        }
+        psql.Databasename = u.Path
+        if len(psql.Databasename) > 1 && psql.Databasename[0:1] == "/" {
+            psql.Databasename = psql.Databasename[1:]
+        }
+        log.Debug("Host: %s Port: %d User: %s Pass: %s Databasename: %s.",
+            psql.Host, psql.Port, psql.Username, psql.password, psql.Databasename)
+    }
 
     //  Find postgres --
 
-    var error error
-    PGCTLPath, error = exec.LookPath("pg_ctl")
+    psql.PGCTLPath, error = exec.LookPath("pg_ctl")
     if error != nil {
         log.Error("Can't find Postgres 'pg_ctl': %v.", error)
-        return error
-        }
-    log.Debug("   Found pg_ctl: %v.", PGCTLPath)
+        return nil, error
+    }
+
+    //  Is postgres running?
+
+    log.Debug("   Found pg_ctl: %v.", psql.PGCTLPath)
     var command *exec.Cmd
-    if len(PSQLDataPath) > 0 {
-        log.Debug("Using data path: %v.", PSQLDataPath)
-        command = exec.Command(PGCTLPath, "status", "-D",  PSQLDataPath)
+    if len(psql.PSQLDataPath) > 0 {
+        log.Debug("Using data path: %v.", psql.PSQLDataPath)
+        command = exec.Command(psql.PGCTLPath, "status", "-D",  psql.PSQLDataPath)
     } else {
         log.Debug("Using default datapath.")
-        command = exec.Command(PGCTLPath, "status")
+        command = exec.Command(psql.PGCTLPath, "status")
     }
     error = command.Run()
     if command.ProcessState.Sys() == 3 {
         log.Debug("Starting Postgres")
-        if len(PSQLDataPath) > 0 {
-           command = exec.Command(PGCTLPath, "start", "-w", "-s", "-D", PSQLDataPath)
+        if len(psql.PSQLDataPath) > 0 {
+           command = exec.Command(psql.PGCTLPath, "start", "-w", "-s", "-D", psql.PSQLDataPath)
         } else {
-           command = exec.Command(PGCTLPath, "start", "-w", "-s")
+           command = exec.Command(psql.PGCTLPath, "start", "-w", "-s")
         }
         error = command.Run()
         if error != nil {
             log.Error("Can't start Postgress: %v.", error)
-            return error
+            return nil, error
         }
     } else {
         log.Debug("Postgres is already started.")
     }
 
-
     //
     //  Find psql command line utility and connect --
     //
 
-
     //  Find psql --
 
-    PSQLPath, error = exec.LookPath("psql")
+    psql.PSQLPath, error = exec.LookPath("psql")
     if error != nil {
         log.Error("Can't find Postgres 'psql': %v.", error)
-        return error
-        }
-    log.Debug("psqlpath: %v.", PSQLPath)
+        return nil, error
+    }
+    log.Debug("psqlpath: %v.", psql.PSQLPath)
 
     //  Make a connection --
 
     connectString :=
         fmt.Sprintf("host=%s port=%d  dbname=%s user=%s password=%s sslmode=disable",
-                     Host, Port, Databasename, Username, Password)
+                     psql.Host, psql.Port, psql.Databasename, psql.Username, psql.password)
     log.Debug("Connection string: %s.", connectString)
-    DB, error = sql.Open("postgres", connectString)
+    psql.DB, error = sql.Open("postgres", connectString)
     if error != nil {
-        DB = nil
+        psql.DB = nil
         log.Error("Error: Can't open database connection: %v.", error);
-        return error
+        return nil, error
     }
 
     //  Get our settings --
     //  select setting from pg_settings where name = 'port';
-    rows, error := DB.Query("select current_user, inet_server_addr(), inet_server_port(), current_database(), current_schema;")
+
+    rows, error := psql.DB.Query("select current_user, inet_server_addr(), inet_server_port(), current_database(), current_schema;")
     if error != nil {
         log.Error("Error querying database config: %v.", error)
-        return error
+        return nil, error
     } else {
         defer rows.Close()
         var (user string; host string; port int; database string; schema string)
@@ -160,18 +202,14 @@ func ConnectDatabase(databaseURI string) error {
         }
     }
 
-    return nil
+    return psql, nil
 }
 
 
-func DisconnectDatabase() {
-    if  DB != nil {
-        DB.Close()
-        DB = nil
-        Host = "localhost"
-        Port = 5432
-        Databasename = "postgres"
-        Username = "postgres"
+func (psql *PSQL) DisconnectDatabase() {
+    if  psql.DB != nil {
+        psql.DB.Close()
+        *psql = DefaultValue()
     }
 }
 
@@ -236,11 +274,11 @@ func Int32ArrayFromString(s *string) []int32 {
 
 
 //----------------------------------------------------------------------------------------
-//                                                                               RunScript
+//                                                                            RunSQLScript
 //----------------------------------------------------------------------------------------
 
 
-func RunScript(script string) error {
+func (psql *PSQL) RunSQLScriptXXX(script string) error {
 
     //
     //  Run an SQL script that is stored as a resource --
@@ -253,7 +291,7 @@ func RunScript(script string) error {
         "-v", "ON_ERROR_STOP=1",
         "--pset", "pager=off",
     }
-    command := exec.Command(PSQLPath, psqlOptions...)
+    command := exec.Command(psql.PSQLPath, psqlOptions...)
     command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
     commandpipe, error := command.StdinPipe()
     if error != nil {
@@ -298,11 +336,11 @@ func RunScript(script string) error {
 
 
 //----------------------------------------------------------------------------------------
-//                                                                              RunScript2
+//                                                                           RunSQLScript2
 //----------------------------------------------------------------------------------------
 
 
-func RunScript2(script string) (standardOut []byte, standardError []byte, error error) {
+func (psql *PSQL) RunSQLScript2(script string) (standardOut []byte, standardError []byte, error error) {
     //
     //  Execute an SQL script --
     //
@@ -312,15 +350,15 @@ func RunScript2(script string) (standardOut []byte, standardError []byte, error 
         "-v", "ON_ERROR_STOP=1",
         "--pset", "pager=off",
     }
-    if Host == "" {
+    if psql.Host == "" {
         psqlOptions = append(psqlOptions, "-h", "localhost")
     } else {
-        psqlOptions = append(psqlOptions, "-h", Host)
+        psqlOptions = append(psqlOptions, "-h", psql.Host)
     }
-    psqlOptions = append(psqlOptions, fmt.Sprintf("--port=%d", Port))
-    psqlOptions = append(psqlOptions, Databasename, Username)
+    psqlOptions = append(psqlOptions, fmt.Sprintf("--port=%d", psql.Port))
+    psqlOptions = append(psqlOptions, psql.Databasename, psql.Username)
 
-    command := exec.Command(PSQLPath, psqlOptions...)
+    command := exec.Command(psql.PSQLPath, psqlOptions...)
     command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
     stdinpipe, error := command.StdinPipe()
     if error != nil {
@@ -385,22 +423,6 @@ func RunScript2(script string) (standardOut []byte, standardError []byte, error 
     }
 
     return standardOut, standardError, nil
-}
-
-
-
-//----------------------------------------------------------------------------------------
-//                                                                      EnableInfiniteTime
-//----------------------------------------------------------------------------------------
-
-
-var infinitySet bool = false
-
-func EnableInfiniteTime() {
-    if !infinitySet {               //  eDebug: Threading
-        infinitySet = true
-        pq.EnableInfinityTs(NegativeInfinityTime, PositiveInfinityTime)
-    }
 }
 
 
