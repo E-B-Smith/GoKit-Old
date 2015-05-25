@@ -68,10 +68,11 @@ func DefaultValue() PSQL {
 
 var NegativeInfinityTime time.Time = time.Date(1500, time.January, 1, 0, 0, 0, 0, time.UTC)
 var PositiveInfinityTime time.Time = time.Date(2500, time.January, 1, 0, 0, 0, 0, time.UTC)
+var infiniteTimeEnabled bool = false
 
-func (psql *PSQL) EnableInfiniteTime() {
-    if !psql.infiniteTimeEnabled {               //  eDebug: Threading
-        psql.infiniteTimeEnabled = true
+func EnableInfiniteTime() {
+    if !infiniteTimeEnabled {               //  eDebug: Threading
+        infiniteTimeEnabled = true
         pq.EnableInfinityTs(NegativeInfinityTime, PositiveInfinityTime)
     }
 }
@@ -87,6 +88,8 @@ func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
     //
     //  Start the database --
     //
+
+    psql = new(PSQL)
 
     if databaseURI != "" {
         u, error := url.Parse(databaseURI)
@@ -278,69 +281,7 @@ func Int32ArrayFromString(s *string) []int32 {
 //----------------------------------------------------------------------------------------
 
 
-func (psql *PSQL) RunSQLScriptXXX(script string) error {
-
-    //
-    //  Run an SQL script that is stored as a resource --
-    //
-
-    var error error
-    psqlOptions := [] string {
-        "-h", "localhost",
-        "-X", "-q",
-        "-v", "ON_ERROR_STOP=1",
-        "--pset", "pager=off",
-    }
-    command := exec.Command(psql.PSQLPath, psqlOptions...)
-    command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
-    commandpipe, error := command.StdinPipe()
-    if error != nil {
-        log.Error("Can't open pipe: %v", error)
-        return error
-    }
-
-    var errorpipe *io.PipeReader;
-    errorpipe, command.Stderr = io.Pipe()
-
-    error = command.Start()
-    if error != nil {
-        log.Error("Error running psql: %v.", error)
-        return error
-    }
-
-    commandpipe.Write([]byte(script))
-    commandpipe.Close()
-
-    var waiter sync.WaitGroup
-    waiter.Add(1)
-    go func() {
-        scanner := bufio.NewScanner(errorpipe)
-        for scanner.Scan() {
-            log.Error("%v.", scanner.Text())
-        }
-        waiter.Done()
-    } ()
-
-    error = command.Wait()
-    errorpipe.Close()
-    waiter.Wait()
-
-    if error != nil {
-        log.Error("Script %v.", error)
-        return error
-    }
-
-    return nil
-}
-
-
-
-//----------------------------------------------------------------------------------------
-//                                                                           RunSQLScript2
-//----------------------------------------------------------------------------------------
-
-
-func (psql *PSQL) RunSQLScript2(script string) (standardOut []byte, standardError []byte, error error) {
+func (psql *PSQL) RunSQLScript(script string) (standardOut []byte, standardError []byte, error error) {
     //
     //  Execute an SQL script --
     //
@@ -360,6 +301,9 @@ func (psql *PSQL) RunSQLScript2(script string) (standardOut []byte, standardErro
 
     command := exec.Command(psql.PSQLPath, psqlOptions...)
     command.Env = append(command.Env, "PGOPTIONS=-c client_min_messages=WARNING")
+    if len(psql.password) > 0 {
+        command.Env = append(command.Env, fmt.Sprintf("PGPASSWORD=%s", psql.password))
+    }
     stdinpipe, error := command.StdinPipe()
     if error != nil {
         log.Error("Can't open StdIn pipe: %v.", error)
