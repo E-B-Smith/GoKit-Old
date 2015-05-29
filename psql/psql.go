@@ -8,11 +8,13 @@ package psql
 
 import (
     "io"
+    "os"
     "fmt"
     "sync"
     "time"
     "bufio"
     "errors"
+    "syscall"
     "strings"
     "strconv"
     "os/exec"
@@ -84,6 +86,16 @@ func EnableInfiniteTime() {
 //----------------------------------------------------------------------------------------
 
 
+func ExitCodeFromProcessState(ps *os.ProcessState) int {
+    if ps == nil { return 1 }
+    if status, ok := ps.Sys().(syscall.WaitStatus); ok {
+        return status.ExitStatus()
+    }
+    return 1
+}
+
+
+
 func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
     //
     //  Start the database --
@@ -134,10 +146,10 @@ func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
         log.Error("Can't find Postgres 'pg_ctl': %v.", error)
         return nil, error
     }
+    log.Debug("   Found pg_ctl: %v.", psql.PGCTLPath)
 
     //  Is postgres running?
 
-    log.Debug("   Found pg_ctl: %v.", psql.PGCTLPath)
     var command *exec.Cmd
     if len(psql.PSQLDataPath) > 0 {
         log.Debug("Using data path: %v.", psql.PSQLDataPath)
@@ -147,12 +159,12 @@ func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
         command = exec.Command(psql.PGCTLPath, "status")
     }
     error = command.Run()
-    if command.ProcessState.Sys() == 3 {
+    if ExitCodeFromProcessState(command.ProcessState) == 3 {
         log.Debug("Starting Postgres")
         if len(psql.PSQLDataPath) > 0 {
-           command = exec.Command(psql.PGCTLPath, "start", "-w", "-s", "-D", psql.PSQLDataPath)
+           command = exec.Command(psql.PGCTLPath, "start", "-w", "-D", psql.PSQLDataPath)
         } else {
-           command = exec.Command(psql.PGCTLPath, "start", "-w", "-s")
+           command = exec.Command(psql.PGCTLPath, "start", "-w")
         }
         error = command.Run()
         if error != nil {
