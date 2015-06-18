@@ -95,6 +95,12 @@ func ExitCodeFromProcessState(ps *os.ProcessState) int {
 }
 
 
+func CloseRows(rows *sql.Rows)  {
+    if rows != nil {
+        rows.Close();
+    }
+}
+
 
 func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
     //
@@ -205,11 +211,11 @@ func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
     //  select setting from pg_settings where name = 'port';
 
     rows, error := psql.DB.Query("select current_user, inet_server_addr(), inet_server_port(), current_database(), current_schema;")
+    defer CloseRows(rows)
     if error != nil {
         log.Error("Error querying database config: %v.", error)
         return nil, error
     } else {
-        defer rows.Close()
         var (user string; host string; port int; database string; schema string)
         for rows.Next() {
             rows.Scan(&user, &host, &port, &database, &schema)
