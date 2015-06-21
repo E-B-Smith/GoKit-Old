@@ -21,7 +21,7 @@ import (
     "net/url"
     "database/sql"
     "github.com/lib/pq"
-    "violent.blue/go/log"
+    "violent.blue/golang/log"
     )
 
 
