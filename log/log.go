@@ -10,9 +10,10 @@ import (
     "io"
     "os"
     "fmt"
+    "path"
     "syscall"
     "runtime"
-    "path"
+    "path/filepath"
     )
 
 
@@ -74,7 +75,15 @@ func SetFilename(filename string) {
     }
     var error error
     var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
-    var mode os.FileMode = os.ModeAppend | os.ModePerm
+    var mode os.FileMode = os.ModeAppend | 0700
+    if filename, error = filepath.EvalSymlinks(filename); error != nil {
+        logWriter = os.Stderr
+        Error("Error: Can't resolve path for log file '%s': %v.", filename, error)
+    }
+    if error = os.MkdirAll(filepath.Dir(filename), 0700); error != nil {
+        logWriter = os.Stderr
+        Error("Error: Can't create directory for log file '%s': %v.", filename, error)
+    }
     logWriter, error = os.OpenFile(filename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
