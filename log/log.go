@@ -14,7 +14,7 @@ import (
     "syscall"
     "runtime"
     "path/filepath"
-    )
+)
 
 
 type LogLevelType int
@@ -27,8 +27,8 @@ const (
     LevelInfo
     LevelWarning
     LevelError
-    )
-var levelNames = []string{
+)
+var levelNames = []string {
     "LevelInvalid",
     "LevelAll",
     "LevelDebug",
@@ -37,7 +37,7 @@ var levelNames = []string{
     "LevelInfo",
     "LevelWarning",
     "LevelError",
-    }
+}
 
 
 var LogLevel    LogLevelType    = LevelWarning
@@ -76,18 +76,17 @@ func SetFilename(filename string) {
     var error error
     var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
     var mode os.FileMode = os.ModeAppend | 0700
-    if filename, error = filepath.EvalSymlinks(filename); error != nil {
-        logWriter = os.Stderr
-        Error("Error: Can't resolve path for log file '%s': %v.", filename, error)
-    }
-    if error = os.MkdirAll(filepath.Dir(filename), 0700); error != nil {
-        logWriter = os.Stderr
-        Error("Error: Can't create directory for log file '%s': %v.", filename, error)
+    pathname := filepath.Dir(filename)
+    if len(pathname) > 0 {
+        if error = os.MkdirAll(pathname, 0700); error != nil {
+            logWriter = os.Stderr
+            Error("Error: Can't create directory for log file '%s': %v.", filename, error)
+        }
     }
     logWriter, error = os.OpenFile(filename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
-        Error("Error: Can't open log file '%s' for reading: %v.", filename, error)
+        Error("Error: Can't open log file '%s' for writing: %v.", filename, error)
     }
 }
 
