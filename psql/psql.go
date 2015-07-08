@@ -241,9 +241,9 @@ func (psql *PSQL) DisconnectDatabase() {
 //----------------------------------------------------------------------------------------
 
 
-func StringFromStringArray(ary []string) string {
+func NullStringFromStringArray(ary []string) sql.NullString {
     if len(ary) == 0 {
-        return "{}"
+        return sql.NullString {}
     }
 
     var result string = "{"+ary[0];
@@ -251,7 +251,7 @@ func StringFromStringArray(ary []string) string {
         result += ","+ary[i]
     }
     result += "}"
-    return result
+    return sql.NullString { Valid: true, String: result }
 }
 
 
