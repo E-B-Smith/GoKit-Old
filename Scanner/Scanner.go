@@ -20,7 +20,7 @@ import (
 
 
 type Scanner struct {
-    file        *os.File
+    filename    string
     reader      *bufio.Reader
     lineNumber  int
     error       error
@@ -28,10 +28,10 @@ type Scanner struct {
 }
 
 
-func NewScanner(file *os.File) *Scanner {
+func NewFileScanner(file *os.File) *Scanner {
     if file == nil { return nil }
     scanner := new(Scanner)
-    scanner.file = file
+    scanner.filename = file.Name()
     scanner.reader = bufio.NewReader(file)
     scanner.lineNumber = 1
     scanner.token = ""
@@ -39,8 +39,17 @@ func NewScanner(file *os.File) *Scanner {
 }
 
 
+func NewStringScanner(s string) *Scanner {
+    scanner := new(Scanner)
+    scanner.reader = bufio.NewReader(strings.NewReader(s))
+    scanner.lineNumber = 1
+    scanner.token = ""
+    return scanner
+}
+
+
 func (scanner *Scanner) FileName() string {
-    return scanner.file.Name()
+    return scanner.filename
 }
 
 
@@ -150,7 +159,7 @@ func (scanner *Scanner) ScanString() (next string, error error) {
     for IsValidStringRune(r) {
         buffer.WriteRune(r)
         r, _, scanner.error = scanner.reader.ReadRune()
-        }
+    }
     scanner.reader.UnreadRune()
 
     scanner.token = buffer.String()
@@ -167,13 +176,13 @@ func (scanner *Scanner) ScanInt() (int int, error error) {
         scanner.reader.UnreadRune()
         scanner.token, _ = scanner.ScanNext()
         return 0, scanner.SetErrorMessage("Integer expected")
-        }
+    }
 
     var buffer bytes.Buffer
     for unicode.IsDigit(r) {
         buffer.WriteRune(r)
         r, _, scanner.error = scanner.reader.ReadRune()
-        }
+    }
     scanner.reader.UnreadRune()
 
     scanner.token = buffer.String()
@@ -204,19 +213,19 @@ func (scanner *Scanner) ScanIdentifier() (identifier string, error error) {
     r, _, scanner.error = scanner.reader.ReadRune()
     if scanner.error != nil {
         return "", scanner.error
-        }
+    }
 
     if ! IsValidIdentifierStartRune(r) {
         scanner.reader.UnreadRune()
         scanner.ScanNext()
         return "", scanner.SetErrorMessage("Expected an identifier")
-        }
+    }
 
     var buffer bytes.Buffer
     for IsValidIdentifierRune(r) {
         buffer.WriteRune(r)
         r, _, scanner.error = scanner.reader.ReadRune()
-        }
+    }
     scanner.reader.UnreadRune()
 
     scanner.token = buffer.String()
