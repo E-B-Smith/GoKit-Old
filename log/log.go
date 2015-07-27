@@ -64,7 +64,8 @@ func StringFromLogLevel(level LogLevelType) string {
 
 
 func SetFilename(filename string) {
-    if  logWriter.Close != nil &&
+    _, hasClose := logWriter.(interface {Close()})
+    if  hasClose &&
         logWriter != os.Stderr &&
         logWriter != os.Stdout {
         logWriter.Close()
