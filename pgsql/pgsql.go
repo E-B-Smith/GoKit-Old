@@ -1,9 +1,9 @@
-//  psql  -  A go Postgres interface.
+//  pgsql  -  A go Postgres interface.
 //
 //  E.B.Smith  -  November, 2014
 
 
-package psql
+package pgsql
 
 
 import (
@@ -27,11 +27,11 @@ import (
 
 
 //----------------------------------------------------------------------------------------
-//                                                                                    psql
+//                                                                                   pgsql
 //----------------------------------------------------------------------------------------
 
 
-type PSQL struct {
+type PGSQL struct {
     PGCTLPath       string
     PSQLPath        string
     PSQLDataPath    string
@@ -45,8 +45,8 @@ type PSQL struct {
 }
 
 
-func DefaultValue() PSQL {
-    psql := PSQL {
+func DefaultValue() PGSQL {
+    pgsql := PGSQL {
         PGCTLPath:      "",
         PSQLPath:       "",
         PSQLDataPath:   "",
@@ -58,7 +58,7 @@ func DefaultValue() PSQL {
         Port:           5432,
         infiniteTimeEnabled: false,
     }
-    return psql
+    return pgsql
 }
 
 
@@ -102,12 +102,15 @@ func CloseRows(rows *sql.Rows)  {
 }
 
 
-func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
+func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
     //
-    //  Start the database --
+    //  Connect to the database --
     //
 
-    psql = new(PSQL)
+    //  Parse a URI like:
+    //  psql://happylabsadmin:happylabsadmin@localhost:5432/happylabsdatabase
+
+    psql = new(PGSQL)
 
     if databaseURI != "" {
         u, error := url.Parse(databaseURI)
@@ -227,7 +230,7 @@ func ConnectDatabase(databaseURI string) (psql *PSQL, error error) {
 }
 
 
-func (psql *PSQL) DisconnectDatabase() {
+func (psql *PGSQL) DisconnectDatabase() {
     if  psql.DB != nil {
         psql.DB.Close()
         *psql = DefaultValue()
@@ -299,7 +302,7 @@ func Int32ArrayFromString(s *string) []int32 {
 //----------------------------------------------------------------------------------------
 
 
-func (psql *PSQL) RunSQLScript(script string) (standardOut []byte, standardError []byte, error error) {
+func (psql *PGSQL) RunSQLScript(script string) (standardOut []byte, standardError []byte, error error) {
     //
     //  Execute an SQL script --
     //
