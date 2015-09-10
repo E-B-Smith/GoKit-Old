@@ -18,9 +18,9 @@ import (
     "syscall"
     "os/signal"
     "database/sql"
-    "violent.blue/golang/log"
-    "violent.blue/golang/pgsql"
-    "violent.blue/golang/Scanner"
+    "../log"
+    "../pgsql"
+    "../Scanner"
 )
 
 
@@ -82,11 +82,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
     var error error
     scanner := Scanner.NewFileScanner(inputFile)
     for !scanner.IsAtEnd() {
-        //log.Debug("Token: '%s'.", scanner.Token())
+        //log.Debugf("Token: '%s'.", scanner.Token())
 
         var identifier string
         identifier, error = scanner.ScanIdentifier()
-        //log.Debug("Scanned '%s'.", scanner.Token())
+        //log.Debugf("Scanned '%s'.", scanner.Token())
 
         if error == io.EOF {
             return nil
@@ -197,7 +197,7 @@ func (config *Configuration) ParseFilename(filename string) error {
     defer inputFile.Close()
     error = config.ParseFile(inputFile)
     if error != nil { return error }
-    log.Debug("Parsed configuration: %v.", config)
+    log.Debugf("Parsed configuration: %v.", config)
     return nil
 }
 
@@ -225,15 +225,15 @@ func (config *Configuration) CreatePIDFile() error {
     var filePerm os.FileMode = 0640
 
     filename := config.PIDFileName()
-    log.Debug("PID file: %s permissions: %d %o %x.", filename, dirPerm, dirPerm, dirPerm)
+    log.Debugf("PID file: %s permissions: %d %o %x.", filename, dirPerm, dirPerm, dirPerm)
     error := os.MkdirAll(path.Dir(filename), dirPerm)
     if error != nil {
-        log.Warning("Can't create pid directory %s: %v.", filename, error)
+        log.Warningf("Can't create pid directory %s: %v.", filename, error)
         return error
     }
 
     // actualPerm, _ := os.Stat(path.Dir(filename))
-    // log.Debug("Dir: %s Perm: %o.", actualPerm.Name(), actualPerm.Mode())
+    // log.Debugf("Dir: %s Perm: %o.", actualPerm.Name(), actualPerm.Mode())
 
     file, error := os.OpenFile(filename, os.O_WRONLY | os.O_CREATE | os.O_EXCL, filePerm)
     if error == nil {
@@ -244,7 +244,7 @@ func (config *Configuration) CreatePIDFile() error {
             return nil
         }
     }
-    log.Debug("Can't create PID file: %v.", error)
+    log.Debugf("Can't create PID file: %v.", error)
     file, error = os.OpenFile(filename, os.O_RDONLY, filePerm)
     defer file.Close()
     if error != nil { return error }
@@ -252,11 +252,11 @@ func (config *Configuration) CreatePIDFile() error {
     scanner := Scanner.NewFileScanner(file)
     pid, _ := scanner.ScanInt()
     command, _ := scanner.ScanToEOL()
-    log.Debug("PID file contents: %d %s.", pid, command)
+    log.Debugf("PID file contents: %d %s.", pid, command)
 
     pinfo, error := GetProcessInfo(pid)
     if error != nil || pinfo.Command != command {
-        log.Warning("Removing old pid file...")
+        log.Warningf("Removing old pid file...")
         os.Remove(filename)
         return config.CreatePIDFile()
     }
@@ -268,7 +268,7 @@ func (config *Configuration) CreatePIDFile() error {
 func (config *Configuration) RemovePIDFile() error {
     //  Remove the pid file.
     filename := config.PIDFileName()
-    log.Debug("Removing PID file %s.", filename)
+    log.Debugf("Removing PID file %s.", filename)
     return os.Remove(filename)
 }
 
@@ -297,11 +297,11 @@ func ProcessCommands(config *Configuration, connection net.Conn) {
     //  Commands:  status | stop | help | hello | version
     log.LogFunctionName()
     defer connection.Close()
-    log.Info("Accepted C&C connection from %s.", connection.RemoteAddr().String())
+    log.Infof("Accepted C&C connection from %s.", connection.RemoteAddr().String())
     helpString := ">>> Commands: 'status', 'stop', 'restart', 'help', 'version'.\n"
     var error error
     timeout, error := time.ParseDuration("30s")
-    if error != nil { log.Error("Error parsing duration: %v.", error) }
+    if error != nil { log.Errorf("Error parsing duration: %v.", error) }
 
     var commandBuffer string
     buffer := make([]byte, 256)
@@ -310,7 +310,7 @@ func ProcessCommands(config *Configuration, connection net.Conn) {
         var n int
         n, error = connection.Read(buffer)
         if n <= 0 && error != nil { break }
-        log.Debug("Read %d characters.", n)
+        log.Debugf("Read %d characters.", n)
 
         commandBuffer += string(buffer[:n])
         index := strings.Index(commandBuffer, "\n")
@@ -324,7 +324,7 @@ func ProcessCommands(config *Configuration, connection net.Conn) {
             }
             index = strings.Index(commandBuffer, "\n")
 
-            log.Info("C&C command '%s'.", command)
+            log.Infof("C&C command '%s'.", command)
             switch command {
                 case "hello":
                     _, error = connection.Write([]byte(">>> Hello.\n"))
@@ -350,9 +350,9 @@ func ProcessCommands(config *Configuration, connection net.Conn) {
         }
     }
     if error != nil {
-        log.Debug("Connection closed with error %v.", error)
+        log.Debugf("Connection closed with error %v.", error)
     } else {
-        log.Debug("Connection closed without error.")
+        log.Debugf("Connection closed without error.")
     }
 }
 
@@ -368,7 +368,7 @@ func (config *Configuration) StartTCPCommandChannel() {
     }
     go func() {
         defer listener.Close()
-        log.Info("Listening for C&C connections on %s.", listener.Addr().String())
+        log.Infof("Listening for C&C connections on %s.", listener.Addr().String())
         for {
             connection, error := listener.Accept()
             if error != nil {
@@ -398,9 +398,9 @@ func (config *Configuration) AttachToInterrupts(httpListener net.Listener) {
             fmt.Fprintf(os.Stderr, "Signal %v\n", signal)
             if signal == syscall.SIGUSR1 {
                 statusString := config.ServerStatusString()
-                log.Info("%s", statusString)
+                log.Infof("%s", statusString)
             } else {
-                log.Info("Quit signal received.")
+                log.Infof("Quit signal received.")
                 httpListener.Close()
             }
         }
@@ -424,11 +424,11 @@ func (config *Configuration) DetachFromInterrupts() {
 
 
 func (config *Configuration) ConnectDatabase() error {
-    log.Info("Starting database %s.", config.DatabaseURI)
+    log.Infof("Starting database %s.", config.DatabaseURI)
     var error error
     config.PGSQL, error = pgsql.ConnectDatabase(config.DatabaseURI)
     if error != nil {
-        log.Error("Can't open database '%s':\n%v.", config.DatabaseURI, error)
+        log.Errorf("Can't open database '%s':\n%v.", config.DatabaseURI, error)
         return error
     }
     pgsql.EnableInfiniteTime()
@@ -439,7 +439,7 @@ func (config *Configuration) ConnectDatabase() error {
 
 func (config *Configuration) DisconnectDatabase() {
     if config.PGSQL != nil {
-        log.Debug("Stopping database %s.", config.DatabaseURI)
+        log.Debugf("Stopping database %s.", config.DatabaseURI)
         config.PGSQL.DisconnectDatabase()
     }
     config.PGSQL = nil
@@ -454,7 +454,7 @@ func (config *Configuration) DisconnectDatabase() {
 
 
 func (config *Configuration) Close() {
-    log.Debug("Cleaning up config.")
+    log.Debugf("Cleaning up config.")
     config.DisconnectDatabase()
     config.RemovePIDFile()
 }

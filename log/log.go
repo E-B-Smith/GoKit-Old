@@ -81,13 +81,13 @@ func SetFilename(filename string) {
     if len(pathname) > 0 {
         if error = os.MkdirAll(pathname, 0700); error != nil {
             logWriter = os.Stderr
-            Error("Error: Can't create directory for log file '%s': %v.", filename, error)
+            Errorf("Error: Can't create directory for log file '%s': %v.", filename, error)
         }
     }
     logWriter, error = os.OpenFile(filename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
-        Error("Error: Can't open log file '%s' for writing: %v.", filename, error)
+        Errorf("Error: Can't open log file '%s' for writing: %v.", filename, error)
     }
 }
 
@@ -156,11 +156,11 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
 }
 
 
-func Debug(format string, args ...interface{})          { logRaw(LevelDebug, format, args...) }
-func Start(format string, args ...interface{})          { logRaw(LevelStart, format, args...) }
-func Exit(format string, args ...interface{})           { logRaw(LevelExit, format, args...) }
-func Info(format string, args ...interface{})           { logRaw(LevelInfo, format, args...) }
-func Warning(format string, args ...interface{})        { logRaw(LevelWarning, format, args...) }
-func Error(format string, args ...interface{})          { logRaw(LevelError, format, args...) }
+func Debugf(format string, args ...interface{})          { logRaw(LevelDebug, format, args...) }
+func Startf(format string, args ...interface{})          { logRaw(LevelStart, format, args...) }
+func Exitf(format string, args ...interface{})           { logRaw(LevelExit, format, args...) }
+func Infof(format string, args ...interface{})           { logRaw(LevelInfo, format, args...) }
+func Warningf(format string, args ...interface{})        { logRaw(LevelWarning, format, args...) }
+func Errorf(format string, args ...interface{})          { logRaw(LevelError, format, args...) }
 func LogError(error error)                              { logRaw(LevelError, "%v.", error) }
 

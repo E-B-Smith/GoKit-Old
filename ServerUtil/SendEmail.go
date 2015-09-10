@@ -8,7 +8,7 @@ package ServerUtil
 
 import (
     "net/smtp"
-    "violent.blue/golang/log"
+    "../log"
 )
 
 

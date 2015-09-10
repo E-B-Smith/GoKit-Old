@@ -14,7 +14,7 @@ import (
     "net/http"
     "encoding/json"
     "encoding/base64"
-    "violent.blue/golang/log"
+    "../log"
 )
 
 
@@ -42,23 +42,23 @@ func SendSMS(toNumber string, message string) error {
     request, _ := http.NewRequest("POST", twilioUrlString, strings.NewReader(formValues.Encode()))
     request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
     request.Header.Add("Authorization", twilioEncodedAuth)
-    //log.Debug("Request:\n%v", *request)
+    //log.Debugf("Request:\n%v", *request)
 
     client := &http.Client{}
     httpResponse, error := client.Do(request)
     if error != nil {
-        log.Error("Can't contact Twilio: %v.", error)
+        log.Errorf("Can't contact Twilio: %v.", error)
         httpResponse.Body.Close()
         return error
     }
     defer httpResponse.Body.Close()
     body, error := ioutil.ReadAll(httpResponse.Body)
     if error != nil {
-        log.Warning("SMS response error: %v.", error)
+        log.Warningf("SMS response error: %v.", error)
         return error
     }
 
-    //log.Debug("Response body: %s.", string(body))
+    //log.Debugf("Response body: %s.", string(body))
 
     type TwilioResponse struct {
         code float64
@@ -66,17 +66,17 @@ func SendSMS(toNumber string, message string) error {
     }
     var response map[string]interface{}
     error = json.Unmarshal(body, &response)
-    //log.Debug("%v", response)
+    //log.Debugf("%v", response)
     if error != nil {
-        log.Error("SMS response error: %v.", error)
+        log.Errorf("SMS response error: %v.", error)
         return error
     }
 
     if  response["code"] != nil {
-        log.Error("SMS error %1.0f: %s", response["code"], response["detail"])
+        log.Errorf("SMS error %1.0f: %s", response["code"], response["detail"])
         error = errors.New(message)
     } else {
-        log.Debug("Sent SMS OK.")
+        log.Debugf("Sent SMS OK.")
     }
 
     return error

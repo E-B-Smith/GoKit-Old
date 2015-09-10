@@ -18,7 +18,7 @@ import (
     "strconv"
     "os/exec"
     "text/scanner"
-    "violent.blue/golang/log"
+    "../log"
 )
 
 
@@ -35,11 +35,11 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
 
     path, error := exec.LookPath(shellCommand)
     if error != nil {
-        log.Error("Can't find path for '%s': %v.", shellCommand, error)
+        log.Errorf("Can't find path for '%s': %v.", shellCommand, error)
         return nil, nil, error
     }
-    log.Debug("     Path: %s.", path)
-    log.Debug("StdIn Len: %d.", len(standardIn))
+    log.Debugf("     Path: %s.", path)
+    log.Debugf("StdIn Len: %d.", len(standardIn))
 
     command := exec.Command(path, parameters...)
 
@@ -52,11 +52,11 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
         buffer := make([]byte, 512)
         reader := bufio.NewReader(errorpipe)
         count, error := reader.Read(buffer)
-        //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        //log.Debugf("Read %d bytes.  Error: %v.", count, error)
         for error == nil {
             standardError = append(standardError, buffer[:count]...)
             count, error = reader.Read(buffer)
-            //log.Debug("Read %d bytes.  Error: %v.", count, error)
+            //log.Debugf("Read %d bytes.  Error: %v.", count, error)
         }
         waiter.Done()
     } ()
@@ -67,11 +67,11 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
         buffer := make([]byte, 512)
         reader := bufio.NewReader(pipeout)
         count, error := reader.Read(buffer)
-        //log.Debug("Read %d bytes.  Error: %v.", count, error)
+        //log.Debugf("Read %d bytes.  Error: %v.", count, error)
         for  error == nil {
              standardOut = append(standardOut, buffer[:count]...)
              count, error = reader.Read(buffer)
-            //log.Debug("Read %d bytes.  Error: %v.", count, error)
+            //log.Debugf("Read %d bytes.  Error: %v.", count, error)
         }
         waiter.Done()
 
@@ -82,20 +82,20 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
     if  len(standardIn) > 0 {
         pipein, error = command.StdinPipe()
         if error != nil {
-            log.Error("Can't open input pipe: %v.", error)
+            log.Errorf("Can't open input pipe: %v.", error)
             return nil, nil, error
         }
 
         _, error = pipein.Write([]byte(standardIn))
         if error != nil {
-            log.Error("Error writing stdin: %v.", error)
+            log.Errorf("Error writing stdin: %v.", error)
             return nil, nil, error
         }
     }
 
     error = command.Start()
     if error != nil {
-        log.Error("Error starting '%s': %v.", path, error)
+        log.Errorf("Error starting '%s': %v.", path, error)
         return nil, nil, error
     }
 
@@ -106,7 +106,7 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
     waiter.Wait()
 
     if error != nil {
-        log.Error("Script wait error: %v.", error)
+        log.Errorf("Script wait error: %v.", error)
     }
 
     return standardOut, standardError, error
