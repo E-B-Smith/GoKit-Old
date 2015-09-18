@@ -119,11 +119,11 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
         } else if u == nil {
             return nil, errors.New("Invalid database URI")
         }
-        log.Debugf("%s:\n%v", databaseURI, u)
+        Log.Debugf("%s:\n%v", databaseURI, u)
 
         if u.Scheme == "db" || u.Scheme == "psql" || u.Scheme == "sql" {
         } else {
-            log.Errorf("Invalid database scheme '%s'", u.Scheme)
+            Log.Errorf("Invalid database scheme '%s'", u.Scheme)
             return nil, errors.New("Invalid scheme")
         }
 
@@ -144,7 +144,7 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
         if len(psql.Databasename) > 1 && psql.Databasename[0:1] == "/" {
             psql.Databasename = psql.Databasename[1:]
         }
-        log.Debugf("Host: %s Port: %d User: %s Pass: %s Databasename: %s.",
+        Log.Debugf("Host: %s Port: %d User: %s Pass: %s Databasename: %s.",
             psql.Host, psql.Port, psql.Username, psql.password, psql.Databasename)
     }
 
@@ -152,24 +152,24 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
 
     psql.PGCTLPath, error = exec.LookPath("pg_ctl")
     if error != nil {
-        log.Errorf("Can't find Postgres 'pg_ctl': %v.", error)
+        Log.Errorf("Can't find Postgres 'pg_ctl': %v.", error)
         return nil, error
     }
-    log.Debugf("   Found pg_ctl: %v.", psql.PGCTLPath)
+    Log.Debugf("   Found pg_ctl: %v.", psql.PGCTLPath)
 
     //  Is postgres running?
 
     var command *exec.Cmd
     if len(psql.PSQLDataPath) > 0 {
-        log.Debugf("Using data path: %v.", psql.PSQLDataPath)
+        Log.Debugf("Using data path: %v.", psql.PSQLDataPath)
         command = exec.Command(psql.PGCTLPath, "status", "-D",  psql.PSQLDataPath)
     } else {
-        log.Debugf("Using default datapath.")
+        Log.Debugf("Using default datapath.")
         command = exec.Command(psql.PGCTLPath, "status")
     }
     error = command.Run()
     if ExitCodeFromProcessState(command.ProcessState) == 3 {
-        log.Debugf("Starting Postgres")
+        Log.Debugf("Starting Postgres")
         if len(psql.PSQLDataPath) > 0 {
            command = exec.Command(psql.PGCTLPath, "start", "-w", "-D", psql.PSQLDataPath)
         } else {
@@ -177,11 +177,11 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
         }
         error = command.Run()
         if error != nil {
-            log.Errorf("Can't start Postgress: %v.", error)
+            Log.Errorf("Can't start Postgress: %v.", error)
             return nil, error
         }
     } else {
-        log.Debugf("Postgres is already started.")
+        Log.Debugf("Postgres is already started.")
     }
 
     //
@@ -192,21 +192,21 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
 
     psql.PSQLPath, error = exec.LookPath("psql")
     if error != nil {
-        log.Errorf("Can't find Postgres 'psql': %v.", error)
+        Log.Errorf("Can't find Postgres 'psql': %v.", error)
         return nil, error
     }
-    log.Debugf("psqlpath: %v.", psql.PSQLPath)
+    Log.Debugf("psqlpath: %v.", psql.PSQLPath)
 
     //  Make a connection --
 
     connectString :=
         fmt.Sprintf("host=%s port=%d  dbname=%s user=%s password=%s sslmode=disable",
                      psql.Host, psql.Port, psql.Databasename, psql.Username, psql.password)
-    log.Debugf("Connection string: %s.", connectString)
+    Log.Debugf("Connection string: %s.", connectString)
     psql.DB, error = sql.Open("postgres", connectString)
     if error != nil {
         psql.DB = nil
-        log.Errorf("Error: Can't open database connection: %v.", error);
+        Log.Errorf("Error: Can't open database connection: %v.", error);
         return nil, error
     }
 
@@ -216,13 +216,13 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
     rows, error := psql.DB.Query("select current_user, inet_server_addr(), inet_server_port(), current_database(), current_schema;")
     defer CloseRows(rows)
     if error != nil {
-        log.Errorf("Error querying database config: %v.", error)
+        Log.Errorf("Error querying database config: %v.", error)
         return nil, error
     } else {
         var (user string; host string; port int; database string; schema string)
         for rows.Next() {
             rows.Scan(&user, &host, &port, &database, &schema)
-            log.Debugf("Connected to database psql:%s@%s:%d/%s (%s).", user, host, port, database, schema)
+            Log.Debugf("Connected to database psql:%s@%s:%d/%s (%s).", user, host, port, database, schema)
         }
     }
 
@@ -327,7 +327,7 @@ func (psql *PGSQL) RunSQLScript(script string) (standardOut []byte, standardErro
     }
     stdinpipe, error := command.StdinPipe()
     if error != nil {
-        log.Errorf("Can't open StdIn pipe: %v.", error)
+        Log.Errorf("Can't open StdIn pipe: %v.", error)
         return standardOut, standardError, error
     }
 
@@ -340,11 +340,11 @@ func (psql *PGSQL) RunSQLScript(script string) (standardOut []byte, standardErro
         buffer := make([]byte, 512)
         reader := bufio.NewReader(errorpipe)
         count, error := reader.Read(buffer)
-        //log.Debugf("Read %d bytes.  Error: %v.", count, error)
+        //Log.Debugf("Read %d bytes.  Error: %v.", count, error)
         for error == nil {
             standardError = append(standardError, buffer[:count]...)
             count, error = reader.Read(buffer)
-            //log.Debugf("Read %d bytes.  Error: %v.", count, error)
+            //Log.Debugf("Read %d bytes.  Error: %v.", count, error)
         }
         waiter.Done()
     } ()
@@ -355,24 +355,24 @@ func (psql *PGSQL) RunSQLScript(script string) (standardOut []byte, standardErro
         buffer := make([]byte, 512)
         reader := bufio.NewReader(pipeout)
         count, error := reader.Read(buffer)
-        //log.Debugf("Read %d bytes.  Error: %v.", count, error)
+        //Log.Debugf("Read %d bytes.  Error: %v.", count, error)
         for error == nil {
             standardOut = append(standardOut, buffer[:count]...)
             count, error = reader.Read(buffer)
-            //log.Debugf("Read %d bytes.  Error: %v.", count, error)
+            //Log.Debugf("Read %d bytes.  Error: %v.", count, error)
         }
         waiter.Done()
     } ()
 
     _, error = stdinpipe.Write([]byte(script))
     if error != nil {
-        log.Errorf("Error writing stdin: %v.", error)
+        Log.Errorf("Error writing stdin: %v.", error)
         return standardOut, standardError, error
     }
 
     error = command.Start()
     if error != nil {
-        log.Errorf("Error starting psql: %v.", error)
+        Log.Errorf("Error starting psql: %v.", error)
         return standardOut, standardError, error
     }
 
@@ -383,7 +383,7 @@ func (psql *PGSQL) RunSQLScript(script string) (standardOut []byte, standardErro
     waiter.Wait()
 
     if error != nil {
-        log.Errorf("Script wait error: %v.", error)
+        Log.Errorf("Script wait error: %v.", error)
         return standardOut, standardError, error
     }
 

@@ -14,7 +14,7 @@ import (
 
 func SendEmail(toAddress string, subject string, message string) error {
     //  Send an email --
-    log.LogFunctionName()
+    Log.LogFunctionName()
 
     var (
         fromAddress     = "beinghappy@beinghappy.io"

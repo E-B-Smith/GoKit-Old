@@ -1,9 +1,9 @@
-//  log  -  Simple logging.
+//  Log  -  Simple logging.
 //
 //  E.B.Smith  -  November, 2014
 
 
-package log
+package Log
 
 
 import (

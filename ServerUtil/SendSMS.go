@@ -42,23 +42,23 @@ func SendSMS(toNumber string, message string) error {
     request, _ := http.NewRequest("POST", twilioUrlString, strings.NewReader(formValues.Encode()))
     request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
     request.Header.Add("Authorization", twilioEncodedAuth)
-    //log.Debugf("Request:\n%v", *request)
+    //Log.Debugf("Request:\n%v", *request)
 
     client := &http.Client{}
     httpResponse, error := client.Do(request)
     if error != nil {
-        log.Errorf("Can't contact Twilio: %v.", error)
+        Log.Errorf("Can't contact Twilio: %v.", error)
         httpResponse.Body.Close()
         return error
     }
     defer httpResponse.Body.Close()
     body, error := ioutil.ReadAll(httpResponse.Body)
     if error != nil {
-        log.Warningf("SMS response error: %v.", error)
+        Log.Warningf("SMS response error: %v.", error)
         return error
     }
 
-    //log.Debugf("Response body: %s.", string(body))
+    //Log.Debugf("Response body: %s.", string(body))
 
     type TwilioResponse struct {
         code float64
@@ -66,17 +66,17 @@ func SendSMS(toNumber string, message string) error {
     }
     var response map[string]interface{}
     error = json.Unmarshal(body, &response)
-    //log.Debugf("%v", response)
+    //Log.Debugf("%v", response)
     if error != nil {
-        log.Errorf("SMS response error: %v.", error)
+        Log.Errorf("SMS response error: %v.", error)
         return error
     }
 
     if  response["code"] != nil {
-        log.Errorf("SMS error %1.0f: %s", response["code"], response["detail"])
+        Log.Errorf("SMS error %1.0f: %s", response["code"], response["detail"])
         error = errors.New(message)
     } else {
-        log.Debugf("Sent SMS OK.")
+        Log.Debugf("Sent SMS OK.")
     }
 
     return error
