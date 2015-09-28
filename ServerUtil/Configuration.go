@@ -18,7 +18,7 @@ import (
     "syscall"
     "os/signal"
     "database/sql"
-    "../log"
+    "../Log"
     "../pgsql"
     "../Scanner"
 )

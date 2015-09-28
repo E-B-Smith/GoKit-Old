@@ -8,7 +8,6 @@ package ServerUtil
 
 import (
     "io"
-//  "fmt"
     "sync"
     "time"
     "bytes"
@@ -18,7 +17,7 @@ import (
     "strconv"
     "os/exec"
     "text/scanner"
-    "../log"
+    "../Log"
 )
 
 

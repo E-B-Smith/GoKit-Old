@@ -162,5 +162,5 @@ func Exitf(format string, args ...interface{})           { logRaw(LevelExit, for
 func Infof(format string, args ...interface{})           { logRaw(LevelInfo, format, args...) }
 func Warningf(format string, args ...interface{})        { logRaw(LevelWarning, format, args...) }
 func Errorf(format string, args ...interface{})          { logRaw(LevelError, format, args...) }
-func LogError(error error)                              { logRaw(LevelError, "%v.", error) }
+func LogError(error error)                               { logRaw(LevelError, "%v.", error) }
 
