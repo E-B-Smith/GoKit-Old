@@ -18,7 +18,7 @@ import (
     "strconv"
     "os/exec"
     "unicode/utf8"
-    )
+)
 
 
 func CleanStringPtr(s *string) *string {

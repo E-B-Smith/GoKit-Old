@@ -18,9 +18,9 @@ import (
     "syscall"
     "os/signal"
     "database/sql"
-    "../log"
-    "../pgsql"
-    "../Scanner"
+    "violent.blue/GoKit/Log"
+    "violent.blue/GoKit/pgsql"
+    "violent.blue/GoKit/Scanner"
 )
 
 

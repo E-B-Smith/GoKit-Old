@@ -18,7 +18,7 @@ import (
     "strconv"
     "os/exec"
     "text/scanner"
-    "../log"
+    "violent.blue/GoKit/Log"
 )
 
 
