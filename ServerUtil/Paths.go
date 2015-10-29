@@ -16,9 +16,14 @@ import (
 
 
 func HomePath() string {
+    homepath := ""
     u, error := user.Current()
-    if error != nil { panic(error) }
-    return u.HomeDir
+    if error == nil {
+        homepath = u.HomeDir
+    } else {
+        homepath = os.Getenv("HOME")
+    }
+    return homepath
 }
 
 
