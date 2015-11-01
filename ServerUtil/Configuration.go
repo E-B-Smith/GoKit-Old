@@ -38,6 +38,10 @@ type Configuration struct {
     WebLog          string
     AppLinkRedirectURL  string
 
+    //  Pulse
+
+    PulseEmailFormFilename string
+
     //  Database
 
     DatabaseURI     string
@@ -166,6 +170,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "app-link-redirect-url" {
             configuration.AppLinkRedirectURL, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "pulse-email-form-filename" {
+            configuration.PulseEmailFormFilename, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
