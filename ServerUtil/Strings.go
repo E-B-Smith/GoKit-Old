@@ -16,9 +16,9 @@ import (
     "regexp"
     "strings"
     "strconv"
-    "os/exec"
     "unicode/utf8"
-)
+    "github.com/satori/go.uuid"
+    )
 
 
 func CleanStringPtr(s *string) *string {
@@ -185,15 +185,10 @@ func CompareVersionStrings(version1 string, version2 string) int {
 }
 
 
-type uuid string
-
-
 func NewUUIDString() string {
-    tempIDRaw, error := exec.Command("uuidgen").Output()
-    if error != nil { panic(error) }
-    tempID := strings.TrimSpace(string(tempIDRaw))
-    return tempID
+    return uuid.NewV4().String()
 }
+
 
 
 //----------------------------------------------------------------------------------------
