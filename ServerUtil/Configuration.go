@@ -37,6 +37,7 @@ type Configuration struct {
     ServerURL       string
     WebLog          string
     AppLinkRedirectURL  string
+    ShortLinkURL        string
 
     //  Pulse
 
@@ -52,11 +53,6 @@ type Configuration struct {
 
     MessageCount    int
     signalChannel   chan os.Signal
-
-    //  Client configuration --
-
-    ClientAppMinDataDate    time.Time;
-    ClientAppMinVersion     string;
 }
 
 
@@ -158,23 +154,13 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "client-app-min-data-date" {
-            configuration.ClientAppMinDataDate, error = scanner.ScanTimestamp()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "client-app-min-version" {
-            configuration.ClientAppMinVersion, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
         if identifier == "app-link-redirect-url" {
             configuration.AppLinkRedirectURL, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
-        if identifier == "pulse-email-form-filename" {
-            configuration.PulseEmailFormFilename, error = scanner.ScanString()
+        if identifier == "short-link-url" {
+            configuration.ShortLinkURL, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
