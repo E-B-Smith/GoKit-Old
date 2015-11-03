@@ -18,9 +18,9 @@ import (
     "syscall"
     "os/signal"
     "database/sql"
-    "../Log"
-    "../pgsql"
-    "../Scanner"
+    "violent.blue/GoKit/Log"
+    "violent.blue/GoKit/pgsql"
+    "violent.blue/GoKit/Scanner"
 )
 
 
@@ -37,6 +37,10 @@ type Configuration struct {
     ServerURL       string
     WebLog          string
     AppLinkRedirectURL  string
+
+    //  Pulse
+
+    PulseEmailFormFilename string
 
     //  Database
 
@@ -166,6 +170,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "app-link-redirect-url" {
             configuration.AppLinkRedirectURL, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "pulse-email-form-filename" {
+            configuration.PulseEmailFormFilename, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }

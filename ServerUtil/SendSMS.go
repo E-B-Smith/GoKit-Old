@@ -14,7 +14,7 @@ import (
     "net/http"
     "encoding/json"
     "encoding/base64"
-    "../Log"
+    "violent.blue/GoKit/Log"
 )
 
 

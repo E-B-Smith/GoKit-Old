@@ -21,7 +21,7 @@ import (
     "net/url"
     "database/sql"
     "github.com/lib/pq"
-    "../Log"
+    "violent.blue/GoKit/Log"
     )
 
 
@@ -82,7 +82,7 @@ func EnableInfiniteTime() {
 
 
 //----------------------------------------------------------------------------------------
-//                                                                         ConnectDatabase
+//                                                                                 Helpers
 //----------------------------------------------------------------------------------------
 
 
@@ -100,6 +100,18 @@ func CloseRows(rows *sql.Rows)  {
         rows.Close();
     }
 }
+
+
+func RowsUpdated(result sql.Result) int64 {
+    var rowsUpdated int64 = 0
+    if result != nil { rowsUpdated, _ = result.RowsAffected() }
+    return rowsUpdated
+}
+
+
+//----------------------------------------------------------------------------------------
+//                                                                         ConnectDatabase
+//----------------------------------------------------------------------------------------
 
 
 func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
@@ -295,6 +307,34 @@ func Int32ArrayFromString(s *string) []int32 {
     return a
 }
 
+
+func Float64ArrayFromNullString(s *sql.NullString) []float64 {
+    if s == nil || !s.Valid {
+        return *new([]float64)
+    }
+
+    str := strings.Trim(s.String, "{}")
+    a := make([]float64, 0, 10)
+    for _, ss := range strings.Split(str, ",") {
+        f, error := strconv.ParseFloat(ss, 64)
+        if error != nil { a = append(a, f) }
+    }
+    return a
+}
+
+
+func StringFromFloat64Array(ary []float64) string {
+    if len(ary) == 0 {
+        return "{}"
+    }
+
+    var result string = "{"+strconv.FormatFloat(ary[0], 'g', -1, 64);
+    for i:=1; i < len(ary); i++ {
+        result += ","+strconv.FormatFloat(ary[i], 'g', -1, 64)
+    }
+    result += "}"
+    return result
+}
 
 
 //----------------------------------------------------------------------------------------

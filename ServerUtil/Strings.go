@@ -16,8 +16,8 @@ import (
     "regexp"
     "strings"
     "strconv"
-    "os/exec"
     "unicode/utf8"
+    "github.com/satori/go.uuid"
     )
 
 
@@ -185,8 +185,8 @@ func CompareVersionStrings(version1 string, version2 string) int {
 }
 
 
+/*
 type uuid string
-
 
 func NewUUIDString() string {
     tempIDRaw, error := exec.Command("uuidgen").Output()
@@ -194,6 +194,13 @@ func NewUUIDString() string {
     tempID := strings.TrimSpace(string(tempIDRaw))
     return tempID
 }
+*/
+
+
+func NewUUIDString() string {
+    return uuid.NewV4().String()
+}
+
 
 
 //----------------------------------------------------------------------------------------
