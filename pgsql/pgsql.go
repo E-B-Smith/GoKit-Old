@@ -22,6 +22,7 @@ import (
     "database/sql"
     "github.com/lib/pq"
     "violent.blue/GoKit/Log"
+    "violent.blue/GoKit/Scanner"
     )
 
 
@@ -261,15 +262,16 @@ func NullStringFromStringArray(ary []string) sql.NullString {
         return sql.NullString {}
     }
 
-    var result string = "{"+ary[0];
+    var result string = "{'"+ary[0];
     for i:=1; i < len(ary); i++ {
-        result += ","+ary[i]
+        result += "','"+ary[i]
     }
-    result += "}"
+    result += "'}"
     return sql.NullString { Valid: true, String: result }
 }
 
 
+/*
 func StringArrayFromString(s *string) []string {
     if s == nil { return *new([]string) }
 
@@ -279,6 +281,27 @@ func StringArrayFromString(s *string) []string {
         a = append(a, ss)
     }
     return a
+}
+*/
+
+func StringArrayFromNullString(nullstring sql.NullString) []string {
+    if ! nullstring.Valid { return *new([]string) }
+
+    array := make([]string, 0, 10)
+    scanner := Scanner.NewStringScanner(strings.Trim(nullstring.String, "{}"))
+    for ! scanner.IsAtEnd() {
+        s, _ := scanner.ScanString();
+        if s == "NULL" {
+            s = ""
+        }
+        array = append(array, s)
+        scanner.ScanSpaces()
+        c, _ := scanner.ScanString()   //  Should be a comma or nothing.
+        if ! (c == "," || c == "") {
+            panic(fmt.Errorf("Mal-formed postgres string array. Found '%c'.", c))
+        }
+    }
+    return array
 }
 
 
