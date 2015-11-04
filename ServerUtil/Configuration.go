@@ -36,12 +36,10 @@ type Configuration struct {
     LogFilename     string
     ServerURL       string
     WebLog          string
-    AppLinkRedirectURL  string
-    ShortLinkURL        string
 
-    //  Pulse
-
-    PulseEmailFormFilename string
+    AppLinkURL              string
+    ShortLinkURL            string
+    LocalizationFilename    string
 
     //  Database
 
@@ -53,6 +51,11 @@ type Configuration struct {
 
     MessageCount    int
     signalChannel   chan os.Signal
+
+    //  Client configuration --
+
+    ClientAppMinDataDate    time.Time;
+    ClientAppMinVersion     string;
 }
 
 
@@ -154,8 +157,18 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "app-link-redirect-url" {
-            configuration.AppLinkRedirectURL, error = scanner.ScanString()
+        if identifier == "client-app-min-data-date" {
+            configuration.ClientAppMinDataDate, error = scanner.ScanTimestamp()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "client-app-min-version" {
+            configuration.ClientAppMinVersion, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "app-link-url" {
+            configuration.AppLinkURL, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
@@ -164,6 +177,13 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
+        if identifier == "localization-filename" {
+            configuration.LocalizationFilename, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+
+
 
         return scanner.SetErrorMessage("Configuration identifier expected")
     }
@@ -180,7 +200,12 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         return errors.New("Missing config parameters")
     }
 
-    return nil
+    error = nil
+    if len(configuration.LocalizationFilename) > 0 {
+        error = configuration.LoadLocalizedStrings()
+    }
+
+    return error
 }
 
 
@@ -453,19 +478,4 @@ func (config *Configuration) Close() {
     config.DisconnectDatabase()
     config.RemovePIDFile()
 }
-
-
-//----------------------------------------------------------------------------------------
-//                                                                       Localized Strings
-//
-//                                                                               Localizef
-//
-//----------------------------------------------------------------------------------------
-
-
-func (config *Configuration) Localizef(format string, args ...interface{}) string {
-    return fmt.Sprintf(format, args...)
-}
-
-
 
