@@ -29,11 +29,12 @@ var globalLocalizeStringMap = make(map[string]*string)
 
 func (config *Configuration) Localizef(messageKey, defaultFormat string, args ...interface{}) string {
 
+    //  Check the string map first.  If not found use the default.
+
     var (format *string; ok bool)
     if format, ok = globalLocalizeStringMap[messageKey]; ! ok {
         format = &defaultFormat
     }
-
     return fmt.Sprintf(*format, args...)
 }
 

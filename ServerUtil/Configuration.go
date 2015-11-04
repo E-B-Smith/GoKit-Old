@@ -217,7 +217,7 @@ func (config *Configuration) ParseFilename(filename string) error {
     defer inputFile.Close()
     error = config.ParseFile(inputFile)
     if error != nil { return error }
-    Log.Debugf("Parsed configuration: %v.", config)
+    //Log.Debugf("Parsed configuration: %v.", config)
     return nil
 }
 
