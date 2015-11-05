@@ -38,6 +38,7 @@ type Configuration struct {
     WebLog          string
 
     AppLinkURL              string
+    AppLinkScheme           string
     ShortLinkURL            string
     LocalizationFilename    string
 
@@ -51,11 +52,6 @@ type Configuration struct {
 
     MessageCount    int
     signalChannel   chan os.Signal
-
-    //  Client configuration --
-
-    ClientAppMinDataDate    time.Time;
-    ClientAppMinVersion     string;
 }
 
 
@@ -157,18 +153,13 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "client-app-min-data-date" {
-            configuration.ClientAppMinDataDate, error = scanner.ScanTimestamp()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "client-app-min-version" {
-            configuration.ClientAppMinVersion, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
         if identifier == "app-link-url" {
             configuration.AppLinkURL, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "app-link-scheme" {
+            configuration.AppLinkScheme, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
@@ -182,8 +173,6 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-
-
 
         return scanner.SetErrorMessage("Configuration identifier expected")
     }
