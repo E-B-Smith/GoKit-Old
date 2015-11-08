@@ -39,6 +39,7 @@ type Configuration struct {
 
     AppLinkURL              string
     AppLinkScheme           string
+    AppStoreURL             string
     ShortLinkURL            string
     LocalizationFilename    string
 
@@ -170,6 +171,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "localization-filename" {
             configuration.LocalizationFilename, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "app-store-url" {
+            configuration.AppStoreURL, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
