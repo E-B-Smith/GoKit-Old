@@ -325,7 +325,7 @@ func Int32ArrayFromString(s *string) []int32 {
     a := make([]int32, 0, 10)
     for _, ss := range strings.Split(str, ",") {
         i, error := strconv.Atoi(ss)
-        if error != nil { a = append(a, int32(i)) }
+        if error == nil { a = append(a, int32(i)) }
     }
     return a
 }
@@ -336,11 +336,11 @@ func Float64ArrayFromNullString(s *sql.NullString) []float64 {
         return *new([]float64)
     }
 
-    str := strings.Trim(s.String, "{}")
     a := make([]float64, 0, 10)
+    str := strings.Trim(s.String, "{}")
     for _, ss := range strings.Split(str, ",") {
         f, error := strconv.ParseFloat(ss, 64)
-        if error != nil { a = append(a, f) }
+        if error == nil { a = append(a, f) }
     }
     return a
 }
