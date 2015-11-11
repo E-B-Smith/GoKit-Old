@@ -40,7 +40,7 @@ var levelNames = []string {
 }
 
 
-var LogLevel    LogLevelType    = LevelWarning
+var LogLevel    LogLevelType    = LevelInfo
 var logWriter   io.WriteCloser  = os.Stderr
 
 

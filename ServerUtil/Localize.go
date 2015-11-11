@@ -50,11 +50,11 @@ func (config *Configuration) Localizef(messageKey, defaultFormat string, args ..
 
 
 func (config *Configuration) LoadLocalizedStrings() error {
+    Log.LogFunctionName()
 
     if len(config.LocalizationFilename) <= 0 {
         Log.Warningf("No filename for localized string file set.")
     }
-
 
     localizedMap := make(map[string]*string)
 

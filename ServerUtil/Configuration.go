@@ -18,6 +18,7 @@ import (
     "syscall"
     "os/signal"
     "database/sql"
+    "html/template"
     "violent.blue/GoKit/Log"
     "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
@@ -42,6 +43,9 @@ type Configuration struct {
     AppStoreURL             string
     ShortLinkURL            string
     LocalizationFilename    string
+    TemplatesPath           string
+
+    Template                *template.Template
 
     //  Database
 
@@ -179,6 +183,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
+        if identifier == "templates-path" {
+            configuration.TemplatesPath, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
 
         return scanner.SetErrorMessage("Configuration identifier expected")
     }
@@ -195,10 +204,42 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         return errors.New("Missing config parameters")
     }
 
+    //  Load localized strings --
+
     error = nil
     if len(configuration.LocalizationFilename) > 0 {
+
+        Log.Infof("Loading localized strings from %s.", configuration.LocalizationFilename)
+
         error = configuration.LoadLocalizedStrings()
+        if error != nil {
+            error = fmt.Errorf("Can't open localization file: %v.", error)
+            Log.LogError(error)
+            panic(error)
+            return error
+        }
     }
+
+    //  Load templates --
+
+    fmt.Fprintf(os.Stderr, "Templates: %s.", configuration.TemplatesPath)
+    if len(configuration.TemplatesPath) > 0 {
+
+        //Log.Infof("Loading templates from %s.", configuration.TemplatesPath)
+        fmt.Fprintf(os.Stderr, "Loading templates from %s.", configuration.TemplatesPath)
+
+        path := configuration.TemplatesPath+"/*"
+        configuration.Template, error = template.ParseGlob(path)
+        if error != nil || configuration.Template == nil {
+            if error == nil { error = fmt.Errorf("No files.") }
+            error = fmt.Errorf("Can't parse template files: %v.", error)
+            Log.LogError(error)
+            panic(error)
+            return error
+        }
+    }
+
+    //  Done --
 
     return error
 }
