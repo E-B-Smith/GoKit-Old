@@ -38,6 +38,7 @@ type Configuration struct {
     ServerURL       string
     WebLog          string
 
+    AppName                 string
     AppLinkURL              string
     AppLinkScheme           string
     AppStoreURL             string
@@ -168,6 +169,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
+        if identifier == "app-name" {
+            configuration.AppName, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
         if identifier == "short-link-url" {
             configuration.ShortLinkURL, error = scanner.ScanString()
             if error != nil { return error }
@@ -188,7 +194,17 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-
+        if identifier == "app-link-redirect-url" ||
+           identifier == "client-app-min-version" ||
+           identifier == "client-app-min-data-date" {
+            Log.Warningf("'%s' is deprecated.", identifier)
+            if identifier == "client-app-min-data-date" {
+                scanner.ScanTimestamp()
+            } else {
+                scanner.ScanString()
+            }
+            continue
+        }
         return scanner.SetErrorMessage("Configuration identifier expected")
     }
 
@@ -202,41 +218,6 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         len(configuration.DatabaseURI) == 0     ||
         len(configuration.ServerURL) == 0 {
         return errors.New("Missing config parameters")
-    }
-
-    //  Load localized strings --
-
-    error = nil
-    if len(configuration.LocalizationFilename) > 0 {
-
-        Log.Infof("Loading localized strings from %s.", configuration.LocalizationFilename)
-
-        error = configuration.LoadLocalizedStrings()
-        if error != nil {
-            error = fmt.Errorf("Can't open localization file: %v.", error)
-            Log.LogError(error)
-            panic(error)
-            return error
-        }
-    }
-
-    //  Load templates --
-
-    fmt.Fprintf(os.Stderr, "Templates: %s.", configuration.TemplatesPath)
-    if len(configuration.TemplatesPath) > 0 {
-
-        //Log.Infof("Loading templates from %s.", configuration.TemplatesPath)
-        fmt.Fprintf(os.Stderr, "Loading templates from %s.", configuration.TemplatesPath)
-
-        path := configuration.TemplatesPath+"/*"
-        configuration.Template, error = template.ParseGlob(path)
-        if error != nil || configuration.Template == nil {
-            if error == nil { error = fmt.Errorf("No files.") }
-            error = fmt.Errorf("Can't parse template files: %v.", error)
-            Log.LogError(error)
-            panic(error)
-            return error
-        }
     }
 
     //  Done --
@@ -257,6 +238,40 @@ func (config *Configuration) ParseFilename(filename string) error {
     return nil
 }
 
+
+func (config *Configuration) ApplyConfiguration() error {
+
+    //  Load localized strings --
+
+    var error error = nil
+    if len(config.LocalizationFilename) > 0 {
+
+        Log.Infof("Loading localized strings from %s.", config.LocalizationFilename)
+
+        error = config.LoadLocalizedStrings()
+        if error != nil {
+            error = fmt.Errorf("Can't open localization file: %v.", error)
+            return error
+        }
+    }
+
+    //  Load templates --
+
+    if len(config.TemplatesPath) > 0 {
+
+        Log.Infof("Loading templates from %s.", config.TemplatesPath)
+
+        path := config.TemplatesPath+"/*"
+        config.Template, error = template.ParseGlob(path)
+        if error != nil || config.Template == nil {
+            if error == nil { error = fmt.Errorf("No files.") }
+            error = fmt.Errorf("Can't parse template files: %v.", error)
+            return error
+        }
+    }
+
+    return nil
+}
 
 
 //----------------------------------------------------------------------------------------
