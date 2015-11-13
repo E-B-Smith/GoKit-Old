@@ -223,3 +223,13 @@ func IPAddressFromHTTPRequest(httpRequest *http.Request) string {
 }
 
 
+func FirstNRunes(s string, n int) string {
+    result := ""
+    for _, runeValue := range s {
+        if n <= 0 { return result }
+        result += string(runeValue)
+        n--
+    }
+    return result
+}
+
