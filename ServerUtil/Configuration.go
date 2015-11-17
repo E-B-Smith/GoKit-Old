@@ -12,6 +12,7 @@ import (
     "fmt"
     "net"
     "time"
+    "html"
     "path"
     "errors"
     "strings"
@@ -239,6 +240,22 @@ func (config *Configuration) ParseFilename(filename string) error {
 }
 
 
+func UnescapeString(args ...interface{}) string {
+    Log.Debugf("UnescapeString:")
+    Log.Debugf("%+v", args...)
+    ok := false
+    var s string
+    if len(args) == 1 {
+        s, ok = args[0].(string)
+        s = html.UnescapeString(s)
+    }
+    if !ok {
+        s = fmt.Sprint(args...)
+    }
+    return s
+}
+
+
 func (config *Configuration) ApplyConfiguration() error {
 
     //  Load localized strings --
@@ -262,7 +279,10 @@ func (config *Configuration) ApplyConfiguration() error {
         Log.Infof("Loading templates from %s.", config.TemplatesPath)
 
         path := config.TemplatesPath+"/*"
-        config.Template, error = template.ParseGlob(path)
+
+        config.Template = template.New("Base")
+        config.Template = config.Template.Funcs(template.FuncMap{"unescapeString": UnescapeString})
+        config.Template, error = config.Template.ParseGlob(path)
         if error != nil || config.Template == nil {
             if error == nil { error = fmt.Errorf("No files.") }
             error = fmt.Errorf("Can't parse template files: %v.", error)

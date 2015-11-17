@@ -233,3 +233,21 @@ func FirstNRunes(s string, n int) string {
     return result
 }
 
+
+func TruncateStringToLength(s string, maxLength int) string {
+    if len(s) < maxLength { return s }
+
+    result := ""
+    a := strings.Split(s, " ")
+    for _, next := range a {
+        if len(result) + len(next) + 3 <= maxLength {
+            result += next + " "
+        } else {
+            result = strings.TrimRight(result, " ")
+            if len(result) + 3 <= maxLength { result += "..." }
+            return result
+        }
+    }
+    return result
+}
+

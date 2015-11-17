@@ -82,7 +82,7 @@ func (config *Configuration) LoadLocalizedStrings() error {
         }
 
         var localString string
-        localString, error = scanner.ScanString()
+        localString, error = scanner.ScanQuotedString()
         if error != nil || symbol != "=" {
             return scanner.SetErrorMessage("Localized string expected")
         }
