@@ -298,7 +298,7 @@ func StringArrayFromNullString(nullstring sql.NullString) []string {
         scanner.ScanSpaces()
         c, _ := scanner.ScanString()   //  Should be a comma or nothing.
         if ! (c == "," || c == "") {
-            panic(fmt.Errorf("Mal-formed postgres string array. Found '%c'.", c))
+            panic(fmt.Errorf("Mal-formed postgres string array. Found '%s'.", c))
         }
     }
     return array
