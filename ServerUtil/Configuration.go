@@ -49,6 +49,13 @@ type Configuration struct {
 
     Template                *template.Template
 
+    //  Email
+
+    EmailAddress        string  //  "beinghappy@beinghappy.io"
+    EmailAccount        string  //  "beinghappy@beinghappy.io"
+    EmailPassword       string  //  "*****"
+    EmailSMTPServer     string  //  "smtp.gmail.com:587"
+
     //  Database
 
     DatabaseURI     string
@@ -192,6 +199,26 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "templates-path" {
             configuration.TemplatesPath, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "email-account" {
+            configuration.EmailAccount, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "email-password" {
+            configuration.EmailPassword, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "email-address" {
+            configuration.EmailAddress, error = scanner.ScanQuotedString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "email-smtp-server" {
+            configuration.EmailSMTPServer, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
