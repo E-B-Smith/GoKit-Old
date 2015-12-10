@@ -9,8 +9,8 @@ package ServerUtil
 import (
     "fmt"
     "bytes"
+    "strconv"
     "net/http"
-    "io/ioutil"
     "encoding/json"
     "encoding/base64"
     "violent.blue/GoKit/Log"
@@ -22,7 +22,7 @@ import (
 //----------------------------------------------------------------------------------------
 
 
-func errorFromValidationStatus(status int32) error {
+func errorFromValidationStatus(status int) error {
     if status == 0 { return nil }
 
     s := ""
@@ -42,17 +42,41 @@ func errorFromValidationStatus(status int32) error {
 }
 
 
-//  eDebug -- Fix this!
-type AppleReceipt struct {
-    Status              int32
-    Receipt             map[string]string
-    LatestReceipt       string
-    LatestReceiptInfo   map[string]string
-    Amount              int32
+//  All dates are in RFC 3339 date format
+
+
+type AppleInAppReceipt struct {
+    Quantity                string  `json:"quantity"`
+    ProductID               string  `json:"product_id"`
+    TransactionID           string  `json:"transaction_id"`
+    OriginalTransactionID   string  `json:"original_transaction_id"`
+    PurchaseDate            string  `json:"purchase_date"`
+    OriginalPurchaseDate    string  `json:"original_purchase_date"`
+    ExpirationDate          string  `json:"expires_date"`
+    CancellationDate        string  `json:"cancellation_date"`
+    AppItemID               string  `json:"app_item_id"`
+    VersionExternalID       string  `json:"version_external_identifier"`
+    WebOrderLineItemID      string  `json:"web_order_line_item_id"`
 }
 
 
-func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (*AppleReceipt, error) {
+type AppleReceipt struct {
+    BundleID                    string  `json:"bundle_id"`
+    ApplicationVersion          string  `json:"application_version"`
+    InAppReceipts               []AppleInAppReceipt  `json:"in_app"`
+    OriginalApplicationVersion  string  `json:"original_application_version"`
+    CreationDate                string  `json:"creation_date"`
+    ExpirationDate              string  `json:"expiration_date"`
+}
+
+
+type AppleReceiptResponse struct {
+    Status              string
+    Receipt             AppleReceipt
+}
+
+
+func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (*AppleInAppReceipt, error) {
 
     if len(receiptData) == 0 {
         return nil, errorFromValidationStatus(21002)
@@ -87,15 +111,33 @@ func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (
         Log.LogError(error)
         return nil, error
     }
-    body, _ := ioutil.ReadAll(response.Body)
-    decoder := json.NewDecoder(bytes.NewBuffer(body))
+    // body, _ := ioutil.ReadAll(response.Body)
+    // decoder := json.NewDecoder(bytes.NewBuffer(body))
+    decoder := json.NewDecoder(response.Body)
 
-    var validatedReceipt AppleReceipt
-    error =  decoder.Decode(&validatedReceipt)
-    if error == nil  && validatedReceipt.Status != 0 {
-        error = errorFromValidationStatus(validatedReceipt.Status)
+    var receiptResponse AppleReceiptResponse
+    error =  decoder.Decode(&receiptResponse)
+    if error != nil {
+        Log.LogError(error)
+        return nil, error
+    }
+    status, error := strconv.Atoi(receiptResponse.Status)
+    if error != nil {
+        Log.LogError(error)
+        return nil, error
+    }
+    if status != 0 {
+        error = errorFromValidationStatus(status)
+        Log.LogError(error)
+        return nil, error
     }
 
-    return &validatedReceipt, error
+    for _, receipt := range receiptResponse.Receipt.InAppReceipts {
+        if receipt.TransactionID == transactionID {
+            return &receipt, nil
+        }
+    }
+
+    return nil, nil
 }
 
