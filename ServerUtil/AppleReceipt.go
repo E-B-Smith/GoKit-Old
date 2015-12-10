@@ -42,6 +42,7 @@ func errorFromValidationStatus(status int32) error {
 }
 
 
+//  eDebug -- Fix this!
 type AppleReceipt struct {
     Status              int32
     Receipt             map[string]string
