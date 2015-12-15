@@ -111,11 +111,9 @@ func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (
         Log.LogError(error)
         return nil, error
     }
-    // body, _ := ioutil.ReadAll(response.Body)
-    // decoder := json.NewDecoder(bytes.NewBuffer(body))
-    decoder := json.NewDecoder(response.Body)
 
     var receiptResponse AppleReceiptResponse
+    decoder := json.NewDecoder(response.Body)
     error =  decoder.Decode(&receiptResponse)
     if error != nil {
         Log.LogError(error)
