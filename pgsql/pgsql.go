@@ -110,6 +110,25 @@ func RowsUpdated(result sql.Result) int64 {
 }
 
 
+func RowUpdateError(error error, result sql.Result) error {
+    if error != nil {
+        return error
+    }
+    if result == nil {
+        return fmt.Errorf("No rows updated")
+    }
+    var rowsUpdated int64 = 0
+    rowsUpdated, error = result.RowsAffected()
+    if error != nil {
+        return error
+    }
+    if rowsUpdated == 0 {
+        return fmt.Errorf("No rows updated")
+    }
+    return nil
+}
+
+
 //----------------------------------------------------------------------------------------
 //                                                                         ConnectDatabase
 //----------------------------------------------------------------------------------------
