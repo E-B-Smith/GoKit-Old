@@ -73,7 +73,6 @@ func RunShellCommand(shellCommand string, parameters []string, standardIn []byte
             //Log.Debugf("Read %d bytes.  Error: %v.", count, error)
         }
         waiter.Done()
-
     } ()
 
     var pipein io.WriteCloser
