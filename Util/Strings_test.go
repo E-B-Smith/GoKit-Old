@@ -3,7 +3,7 @@
 //  E.B.Smith  -  November, 2014
 
 
-package ServerUtil
+package Util
 
 
 import (

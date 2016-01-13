@@ -3,7 +3,7 @@
 //  E.B.Smith  -  September, 2015
 
 
-package ServerUtil
+package Util
 
 
 func Min(x, y int) int {
