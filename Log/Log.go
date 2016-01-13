@@ -18,8 +18,8 @@ import (
     "syscall"
     "strings"
     "unicode"
+    "os/user"
     "path/filepath"
-    "violent.blue/GoKit/Util"
 )
 
 
@@ -72,6 +72,33 @@ func StringFromLogLevel(level LogLevelType) string {
 }
 
 
+func homePath() string {
+    homepath := ""
+    u, error := user.Current()
+    if error == nil {
+        homepath = u.HomeDir
+    } else {
+        homepath = os.Getenv("HOME")
+    }
+    return homepath
+}
+
+
+func absolutePath(filename string) string {
+    filename = strings.TrimSpace(filename)
+    if  filepath.HasPrefix(filename, "~") {
+        filename = strings.TrimPrefix(filename, "~")
+        filename = path.Join(homePath(), filename)
+    }
+    if ! path.IsAbs(filename) {
+        s, _ := os.Getwd()
+        filename = path.Join(s, filename)
+    }
+    filename = path.Clean(filename)
+    return filename
+}
+
+
 func closeLogFile() {
     _, hasClose := logWriter.(interface {Close()})
     if  hasClose &&
@@ -85,7 +112,7 @@ func closeLogFile() {
 func openLogFile() {
     logRotationTime = time.Unix(math.MaxInt64 - 10000, 0)  //  Distant future
 
-    logFilename = ServerUtil.AbsolutePath(logFilename)
+    logFilename = absolutePath(logFilename)
     if len(logFilename) <= 0 {
         logWriter = os.Stderr
         return

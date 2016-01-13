@@ -12,6 +12,7 @@ import (
     "strings"
     "net/smtp"
     "violent.blue/GoKit/Log"
+    "violent.blue/GoKit/Util"
 )
 
 
@@ -49,7 +50,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     }
     Log.Debugf("From: '%s' '%s'.", config.EmailAddress, rawFromAddress)
 
-    toAddress, error = ValidatedEmailAddress(toAddress)
+    toAddress, error = Util.ValidatedEmailAddress(toAddress)
     if error != nil { return error }
 
     toArray := []string{toAddress}

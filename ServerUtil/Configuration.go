@@ -21,6 +21,7 @@ import (
     "database/sql"
     "html/template"
     "violent.blue/GoKit/Log"
+    "violent.blue/GoKit/Util"
     "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
 )
@@ -328,7 +329,7 @@ func (config *Configuration) ApplyConfiguration() error {
 
 func (config *Configuration) PIDFileName() string {
     name := "~/.run/" + config.ServiceName + ".pid"
-    name = CleanupPath(name)
+    name = Util.AbsolutePath(name)
     return name
 }
 
@@ -355,7 +356,7 @@ func (config *Configuration) CreatePIDFile() error {
 
     file, error := os.OpenFile(filename, os.O_WRONLY | os.O_CREATE | os.O_EXCL, filePerm)
     if error == nil {
-        pinfo, error := GetProcessInfo(os.Getpid())
+        pinfo, error := Util.GetProcessInfo(os.Getpid())
         if error == nil {
             fmt.Fprintf(file, "%d\t%s\n", pinfo.PID, pinfo.Command)
             file.Close()
@@ -372,7 +373,7 @@ func (config *Configuration) CreatePIDFile() error {
     command, _ := scanner.ScanToEOL()
     Log.Debugf("PID file contents: %d %s.", pid, command)
 
-    pinfo, error := GetProcessInfo(pid)
+    pinfo, error := Util.GetProcessInfo(pid)
     if error != nil || pinfo.Command != command {
         Log.Warningf("Removing old pid file...")
         os.Remove(filename)
@@ -398,14 +399,14 @@ func (config *Configuration) RemovePIDFile() error {
 
 
 func (config *Configuration) ServerStatusString() string {
-    pinfo, _ := GetProcessInfo(os.Getpid())
+    pinfo, _ := Util.GetProcessInfo(os.Getpid())
     result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
         config.ServiceName,
         pinfo.PID,
         time.Since(pinfo.StartTime).String(),
         pinfo.CPUPercent,
-        HumanBytes(int64(pinfo.VMemory)),
-        HumanInt(int64(config.MessageCount)),
+        Util.HumanBytes(int64(pinfo.VMemory)),
+        Util.HumanInt(int64(config.MessageCount)),
     )
     return result
 }
