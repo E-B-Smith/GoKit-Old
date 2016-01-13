@@ -27,10 +27,11 @@ func HomePath() string {
 }
 
 
-func CleanupPath(filename string) string {
+func AbsolutePath(filename string) string {
+    filename = strings.TrimSpace(filename)
     if  filepath.HasPrefix(filename, "~") {
-        home := HomePath() + "/"
-        filename = strings.Replace(filename, "~", home, 1)
+        filename = strings.TrimPrefix(filename, "~")
+        filename = path.Join(HomePath(), filename)
     }
     if ! path.IsAbs(filename) {
         s, _ := os.Getwd()

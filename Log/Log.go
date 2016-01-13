@@ -10,10 +10,16 @@ import (
     "io"
     "os"
     "fmt"
+    "math"
     "path"
-    "syscall"
+    "sort"
+    "time"
     "runtime"
+    "syscall"
+    "strings"
+    "unicode"
     "path/filepath"
+    "violent.blue/GoKit/Util"
 )
 
 
@@ -38,10 +44,13 @@ var levelNames = []string {
     "LevelWarning",
     "LevelError",
 }
-
-
-var LogLevel    LogLevelType    = LevelInfo
-var logWriter   io.WriteCloser  = os.Stderr
+var (
+    LogLevel        LogLevelType    = LevelInfo
+    logWriter       io.WriteCloser  = os.Stderr
+    logFilename     string          = ""
+    logRotationTime time.Time
+    logRotationInterval time.Duration = time.Hour * 24.0
+)
 
 
 func LogLevelFromString(s string) LogLevelType {
@@ -63,32 +72,99 @@ func StringFromLogLevel(level LogLevelType) string {
 }
 
 
-func SetFilename(filename string) {
+func closeLogFile() {
     _, hasClose := logWriter.(interface {Close()})
     if  hasClose &&
         logWriter != os.Stderr &&
         logWriter != os.Stdout {
         logWriter.Close()
     }
-    if len(filename) <= 0 {
+}
+
+
+func openLogFile() {
+    logRotationTime = time.Unix(math.MaxInt64 - 10000, 0)  //  Distant future
+
+    logFilename = ServerUtil.AbsolutePath(logFilename)
+    if len(logFilename) <= 0 {
         logWriter = os.Stderr
         return
     }
+
     var error error
-    var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
-    var mode os.FileMode = os.ModeAppend | 0700
-    pathname := filepath.Dir(filename)
+    pathname := filepath.Dir(logFilename)
     if len(pathname) > 0 {
         if error = os.MkdirAll(pathname, 0700); error != nil {
             logWriter = os.Stderr
-            Errorf("Error: Can't create directory for log file '%s': %v.", filename, error)
+            Errorf("Error: Can't create directory for log file '%s': %v.", logFilename, error)
         }
     }
-    logWriter, error = os.OpenFile(filename, flags, mode)
+
+    var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
+    var mode os.FileMode = os.ModeAppend | 0700
+
+    logWriter, error = os.OpenFile(logFilename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
-        Errorf("Error: Can't open log file '%s' for writing: %v.", filename, error)
+        Errorf("Error: Can't open log file '%s' for writing: %v.", logFilename, error)
     }
+
+    if logRotationInterval.Seconds() > 0 {
+        var nextTime int64 = (int64(time.Now().Unix()) / int64(logRotationInterval.Seconds())) + 1
+        nextTime *= int64(logRotationInterval.Seconds())
+        logRotationTime = time.Unix(nextTime, 0)
+    }
+}
+
+
+func rotateLogFile() {
+    if len(logFilename) <= 0 { return }
+
+    replacePunct := func(r rune) rune {
+        if unicode.IsLetter(r) || unicode.IsDigit(r) {
+            return r
+        } else {
+            return '-'
+        }
+    }
+
+    //  Create a new file for the log --
+
+    closeLogFile()
+    timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339))
+    newPath := fmt.Sprintf("%s-%s", logFilename, timeString)
+    error := os.Rename(logFilename, newPath)
+    if error != nil { panic(error) }
+    openLogFile()
+
+    //  Delete the oldest --
+
+    logfiles, error := filepath.Glob(logFilename+"-*")
+    if error != nil {
+        LogError(error)
+        return
+    }
+
+    //  Keep the newest 7 --
+
+    sortedLogfiles := sort.StringSlice(logfiles)
+    sortedLogfiles.Sort()
+    for i := 0; i < len(sortedLogfiles) - 7; i++ {
+        error = os.Remove(sortedLogfiles[i])
+        if error != nil {
+            Errorf("Can't remove log file '%s': %v.", sortedLogfiles[i], error)
+        }
+    }
+}
+
+
+func SetFilename(filename string) {
+    if filename == logFilename {
+        return
+    }
+    closeLogFile()
+    logFilename = filename
+    openLogFile()
 }
 
 
@@ -124,7 +200,8 @@ func LogFunctionName() {
 
 
 func FlushMessages() {
-    logWriter.Close()
+    closeLogFile()
+    openLogFile()
 }
 
 
@@ -149,6 +226,11 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
     i := len(filename)
     if i > 26 {
         i = 26
+    }
+
+    itemTime := time.Now()
+    if  itemTime.After(logRotationTime)  {
+        rotateLogFile()
     }
 
     var message = fmt.Sprintf(format, args...)
