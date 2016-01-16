@@ -110,7 +110,16 @@ func closeLogFile() {
 
 
 func openLogFile() {
-    logRotationTime = time.Unix(math.MaxInt64 - 10000, 0)  //  Distant future
+    logRotationTime = time.Unix(math.MaxInt64 - 1000, 0)  //  Distant future
+
+    defer func() {
+        if reason := recover(); reason != nil {
+            logFilename = ""
+            logWriter = os.Stderr
+            Errorf("%s", reason)
+        }
+        fmt.Fprintf(os.Stderr, "Logfile: '%s'.", logFilename)
+    }()
 
     logFilename = absolutePath(logFilename)
     if len(logFilename) <= 0 {
@@ -123,7 +132,7 @@ func openLogFile() {
     if len(pathname) > 0 {
         if error = os.MkdirAll(pathname, 0700); error != nil {
             logWriter = os.Stderr
-            Errorf("Error: Can't create directory for log file '%s': %v.", logFilename, error)
+            panic(fmt.Sprintf("Error: Can't create directory for log file '%s': %v.", logFilename, error))
         }
     }
 
@@ -133,7 +142,7 @@ func openLogFile() {
     logWriter, error = os.OpenFile(logFilename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
-        Errorf("Error: Can't open log file '%s' for writing: %v.", logFilename, error)
+        panic(fmt.Sprintf("Error: Can't open log file '%s' for writing: %v.", logFilename, error))
     }
 
     if logRotationInterval.Seconds() > 0 {
@@ -147,6 +156,15 @@ func openLogFile() {
 func rotateLogFile() {
     if len(logFilename) <= 0 { return }
 
+    defer func() {
+        if reason := recover(); reason != nil {
+            logFilename = ""
+            logWriter = os.Stderr
+            Errorf("%s", reason)
+        }
+        fmt.Fprintf(os.Stderr, "Logfile: '%s'.", logFilename)
+    }()
+
     replacePunct := func(r rune) rune {
         if unicode.IsLetter(r) || unicode.IsDigit(r) {
             return r
@@ -157,9 +175,14 @@ func rotateLogFile() {
 
     //  Create a new file for the log --
 
-    closeLogFile()
     timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339))
-    newPath := fmt.Sprintf("%s-%s", logFilename, timeString)
+    newBase := fmt.Sprintf("%s-%s.%s",
+        filepath.BaseName(logFilename),
+        timeString,
+        filepath.Ext(logFilename))
+    newPath := filepath.Join(filePath.Dir(logFilename), newBase)
+    Infof("Log rotated from '%s'.", newPath)
+    closeLogFile()
     error := os.Rename(logFilename, newPath)
     if error != nil { panic(error) }
     openLogFile()
@@ -177,6 +200,7 @@ func rotateLogFile() {
     sortedLogfiles := sort.StringSlice(logfiles)
     sortedLogfiles.Sort()
     for i := 0; i < len(sortedLogfiles) - 7; i++ {
+        Infof("Removing old log '%s'.", sortedLogfiles[i])
         error = os.Remove(sortedLogfiles[i])
         if error != nil {
             Errorf("Can't remove log file '%s': %v.", sortedLogfiles[i], error)
