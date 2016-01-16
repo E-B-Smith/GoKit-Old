@@ -47,9 +47,10 @@ var levelNames = []string {
 var (
     LogLevel        LogLevelType    = LevelInfo
     logWriter       io.WriteCloser  = os.Stderr
+    LogTeeStderr    bool            = false
     logFilename     string          = ""
     logRotationTime time.Time
-    logRotationInterval time.Duration = time.Hour * 24.0
+    LogRotationInterval time.Duration = time.Hour * 24.0
 )
 
 
@@ -118,8 +119,18 @@ func openLogFile() {
             logWriter = os.Stderr
             Errorf("%s", reason)
         }
-        fmt.Fprintf(os.Stderr, "Logfile: '%s'.", logFilename)
+        name := logFilename
+        if name == "" { name = "Stderr" }
+        fmt.Fprintf(os.Stderr, "Log file is '%s'.\n", name)
     }()
+
+    //fmt.Fprintf(os.Stderr, "Log: %s.\n", logFilename)
+
+    logFilename = strings.TrimSpace(logFilename)
+    if logFilename == "" {
+        logWriter = os.Stderr
+        return
+    }
 
     logFilename = absolutePath(logFilename)
     if len(logFilename) <= 0 {
@@ -127,27 +138,33 @@ func openLogFile() {
         return
     }
 
+    //fmt.Fprintf(os.Stderr, "Log: %s.\n", logFilename)
+
     var error error
     pathname := filepath.Dir(logFilename)
     if len(pathname) > 0 {
         if error = os.MkdirAll(pathname, 0700); error != nil {
             logWriter = os.Stderr
-            panic(fmt.Sprintf("Error: Can't create directory for log file '%s': %v.", logFilename, error))
+            panic(fmt.Sprintf("Can't create directory for log file '%s': %v.", logFilename, error))
         }
     }
+
+    //fmt.Fprintf(os.Stderr, "Log: %s\n.", pathname)
 
     var flags int = syscall.O_APPEND | syscall.O_CREAT | syscall.O_WRONLY
     var mode os.FileMode = os.ModeAppend | 0700
 
+    //fmt.Fprintf(os.Stderr, "Log: %s\n.", logFilename)
+
     logWriter, error = os.OpenFile(logFilename, flags, mode)
     if error != nil {
         logWriter = os.Stderr
-        panic(fmt.Sprintf("Error: Can't open log file '%s' for writing: %v.", logFilename, error))
+        panic(fmt.Sprintf("Can't open log file '%s' for writing: %v.", logFilename, error))
     }
 
-    if logRotationInterval.Seconds() > 0 {
-        var nextTime int64 = (int64(time.Now().Unix()) / int64(logRotationInterval.Seconds())) + 1
-        nextTime *= int64(logRotationInterval.Seconds())
+    if LogRotationInterval.Seconds() > 0 {
+        var nextTime int64 = (int64(time.Now().Unix()) / int64(LogRotationInterval.Seconds())) + 1
+        nextTime *= int64(LogRotationInterval.Seconds())
         logRotationTime = time.Unix(nextTime, 0)
     }
 }
@@ -162,7 +179,9 @@ func rotateLogFile() {
             logWriter = os.Stderr
             Errorf("%s", reason)
         }
-        fmt.Fprintf(os.Stderr, "Logfile: '%s'.", logFilename)
+        name := logFilename
+        if name == "" { name = "Stderr" }
+        fmt.Fprintf(os.Stderr, "Log file is '%s'.\n", name)
     }()
 
     replacePunct := func(r rune) rune {
@@ -175,21 +194,26 @@ func rotateLogFile() {
 
     //  Create a new file for the log --
 
-    timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339))
-    newBase := fmt.Sprintf("%s-%s.%s",
-        filepath.BaseName(logFilename),
-        timeString,
-        filepath.Ext(logFilename))
-    newPath := filepath.Join(filePath.Dir(logFilename), newBase)
-    Infof("Log rotated from '%s'.", newPath)
+    baseName := filepath.Base(logFilename)
+    ext := filepath.Ext(baseName)
+    if len(ext) != 0 {
+        baseName = strings.TrimSuffix(baseName, ext)
+    }
+    timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339)) + ext
+    newBase := fmt.Sprintf("%s-%s", baseName, timeString)
+    newPath := filepath.Join(filepath.Dir(logFilename), newBase)
     closeLogFile()
     error := os.Rename(logFilename, newPath)
     if error != nil { panic(error) }
     openLogFile()
+    Infof("Log rotated to '%s'.", newPath)
+    Infof("Log continues in '%s'.", logFilename)
 
     //  Delete the oldest --
 
-    logfiles, error := filepath.Glob(logFilename+"-*")
+    globPath := filepath.Join(filepath.Dir(logFilename), baseName+"-*")
+    logfiles, error := filepath.Glob(globPath)
+    //fmt.Fprintf(os.Stderr, "files: %+v.\n", logfiles)
     if error != nil {
         LogError(error)
         return
@@ -247,6 +271,9 @@ func LogFunctionName() {
     }
     message := fmt.Sprintf("function %s.", runtime.FuncForPC(pc).Name())
     fmt.Fprintf(logWriter, "%26s:%-4d %s: %s\n", filename[:i], linenumber, " Info", message)
+    if LogTeeStderr {
+        fmt.Fprintf(os.Stderr, "%26s:%-4d %s: %s\n", filename[:i], linenumber, " Info", message)
+    }
 }
 
 
@@ -286,6 +313,9 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
 
     var message = fmt.Sprintf(format, args...)
     fmt.Fprintf(logWriter, "%26s:%-4d %s: %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
+    if LogTeeStderr {
+        fmt.Fprintf(os.Stderr, "%26s:%-4d %s: %s\n", filename[:i], linenumber, LevelNames[logLevel], message)
+    }
 }
 
 
