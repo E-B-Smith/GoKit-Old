@@ -26,6 +26,7 @@ func CleanStringPtr(s *string) *string {
         return s
     } else {
         temp := strings.TrimSpace(*s)
+        if len(temp) == 0 { return nil }
         return &temp
     }
 }
@@ -194,6 +195,7 @@ func NewUUIDString() string {
 //----------------------------------------------------------------------------------------
 //                                                                IPAddressFromHTTPRequest
 //----------------------------------------------------------------------------------------
+
 
 
 func IPAddressFromHTTPRequest(httpRequest *http.Request) string {
