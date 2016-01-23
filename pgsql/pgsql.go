@@ -32,6 +32,15 @@ import (
 //----------------------------------------------------------------------------------------
 
 
+type SSLType int;
+const (
+    SSLTypeDisable = iota   //  ?sslmode=disable
+    SSLTypeRequire          //  require
+    SSLTypeVerifyCA         //  verify-ca
+    SSLTypeVerifyFull       //  verify-full
+)
+
+
 type PGSQL struct {
     PGCTLPath       string
     PSQLPath        string
@@ -43,6 +52,7 @@ type PGSQL struct {
     password        string
     Port            int
     infiniteTimeEnabled  bool
+    UseSSL          bool
 }
 
 
@@ -58,6 +68,7 @@ func DefaultValue() PGSQL {
         password:       "",
         Port:           5432,
         infiniteTimeEnabled: false,
+        UseSSL:         false,
     }
     return pgsql
 }
@@ -142,7 +153,8 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
     //  Parse a URI like:
     //  psql://happylabsadmin:happylabsadmin@localhost:5432/happylabsdatabase
 
-    psql = new(PGSQL)
+    psqlValue := DefaultValue()
+    psql = &psqlValue
 
     if databaseURI != "" {
         u, error := url.Parse(databaseURI)
@@ -151,9 +163,12 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
         } else if u == nil {
             return nil, errors.New("Invalid database URI")
         }
-        Log.Debugf("%s:\n%v", databaseURI, u)
+        Log.Debugf("URI: %s. Parsed: %+v.", databaseURI, u)
 
-        if u.Scheme == "db" || u.Scheme == "psql" || u.Scheme == "sql" {
+        if u.Scheme == "db"   ||
+           u.Scheme == "psql" ||
+           u.Scheme == "sql"  ||
+           u.Scheme == "postgres" {
         } else {
             Log.Errorf("Invalid database scheme '%s'", u.Scheme)
             return nil, errors.New("Invalid scheme")
@@ -231,10 +246,24 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
 
     //  Make a connection --
 
-    connectString :=
-        fmt.Sprintf("host=%s port=%d  dbname=%s user=%s password=%s sslmode=disable",
-                     psql.Host, psql.Port, psql.Databasename, psql.Username, psql.password)
+    connectString := fmt.Sprintf("host=%s port=%d", psql.Host, psql.Port)
+    if psql.Databasename != "" {
+       connectString += " dbname="+psql.Databasename
+    }
+    if psql.Username != "" {
+        connectString += " user="+psql.Username
+    }
+    if psql.password != "" {
+        connectString += " password="+psql.password
+    }
+    if psql.UseSSL {
+        connectString += " sslmode=enable"
+    } else {
+        connectString += " sslmode=disable"
+    }
+
     Log.Debugf("Connection string: %s.", connectString)
+    connectString = databaseURI //  eDebug
     psql.DB, error = sql.Open("postgres", connectString)
     if error != nil {
         psql.DB = nil
