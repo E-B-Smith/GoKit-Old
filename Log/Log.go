@@ -199,7 +199,8 @@ func rotateLogFile() {
     if len(ext) != 0 {
         baseName = strings.TrimSuffix(baseName, ext)
     }
-    timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339)) + ext
+    //timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339)) + ext
+    timeString := logRotationTime.Format(time.RFC3339) + ext
     newBase := fmt.Sprintf("%s-%s", baseName, timeString)
     newPath := filepath.Join(filepath.Dir(logFilename), newBase)
     closeLogFile()
