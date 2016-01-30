@@ -17,7 +17,7 @@ import (
     "runtime"
     "syscall"
     "strings"
-    "unicode"
+    //"unicode"
     "os/user"
     "path/filepath"
 )
@@ -184,6 +184,7 @@ func rotateLogFile() {
         fmt.Fprintf(os.Stderr, "Log file is '%s'.\n", name)
     }()
 
+/*
     replacePunct := func(r rune) rune {
         if unicode.IsLetter(r) || unicode.IsDigit(r) {
             return r
@@ -191,6 +192,7 @@ func rotateLogFile() {
             return '-'
         }
     }
+*/
 
     //  Create a new file for the log --
 
@@ -199,7 +201,8 @@ func rotateLogFile() {
     if len(ext) != 0 {
         baseName = strings.TrimSuffix(baseName, ext)
     }
-    timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339)) + ext
+    //timeString := strings.Map(replacePunct, logRotationTime.Format(time.RFC3339)) + ext
+    timeString := logRotationTime.Format(time.RFC3339) + ext
     newBase := fmt.Sprintf("%s-%s", baseName, timeString)
     newPath := filepath.Join(filepath.Dir(logFilename), newBase)
     closeLogFile()
