@@ -11,6 +11,7 @@ import (
     "strings"
     "strconv"
     "database/sql"
+    "violent.blue/GoKit/Log"
     "violent.blue/GoKit/Scanner"
 )
 
@@ -22,6 +23,7 @@ import (
 
 func NullStringFromStringArray(ary []string) sql.NullString {
     if len(ary) == 0 {
+        Log.Debugf("NULL")
         return sql.NullString {}
     }
 
@@ -30,6 +32,8 @@ func NullStringFromStringArray(ary []string) sql.NullString {
         result += "\",\""+ary[i]
     }
     result += "\"}"
+
+    Log.Debugf("Output: |%s|.", result)
     return sql.NullString { Valid: true, String: result }
 }
 
@@ -49,12 +53,17 @@ func StringArrayFromString(s *string) []string {
 
 
 func StringArrayFromNullString(nullstring sql.NullString) []string {
-    if ! nullstring.Valid { return *new([]string) }
+    if ! nullstring.Valid {
+        Log.Debugf("NULL")
+        return *new([]string)
+    }
+
+    Log.Debugf("Input: |%s|.", nullstring.String)
 
     array := make([]string, 0, 10)
     scanner := Scanner.NewStringScanner(strings.Trim(nullstring.String, "{}"))
     for ! scanner.IsAtEnd() {
-        s, _ := scanner.ScanNext();
+        s, _ := scanner.ScanSQLString();
         if s == "NULL" {
             s = ""
         }
@@ -65,6 +74,9 @@ func StringArrayFromNullString(nullstring sql.NullString) []string {
             panic(fmt.Errorf("Mal-formed postgres string array. Found '%s'.", c))
         }
     }
+
+    Log.Debugf("Output: %v.", array)
+
     return array
 }
 
