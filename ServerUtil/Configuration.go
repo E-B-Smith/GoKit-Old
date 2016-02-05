@@ -403,7 +403,7 @@ func (config *Configuration) ServerStatusString() string {
     result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
         config.ServiceName,
         pinfo.PID,
-        time.Since(pinfo.StartTime).String(),
+        Util.HumanDuration(time.Since(pinfo.StartTime)),
         pinfo.CPUPercent,
         Util.HumanBytes(int64(pinfo.VMemory)),
         Util.HumanInt(int64(config.MessageCount)),
