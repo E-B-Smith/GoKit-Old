@@ -63,6 +63,10 @@ type Configuration struct {
     PGSQL           *pgsql.PGSQL
     DB              *sql.DB
 
+    //  HappyPulse config
+
+    PulsesAreFree       bool
+
     //  Global info
 
     MessageCount    int
@@ -220,6 +224,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "email-smtp-server" {
             configuration.EmailSMTPServer, error = scanner.ScanString()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "pulses-are-free" {
+            configuration.PulsesAreFree, error = scanner.ScanBool()
             if error != nil { return error }
             continue
         }
