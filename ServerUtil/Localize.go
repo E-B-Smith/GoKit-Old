@@ -52,7 +52,7 @@ func (config *Configuration) Localizef(messageKey, defaultFormat string, args ..
 func (config *Configuration) LoadLocalizedStrings() error {
     Log.LogFunctionName()
 
-    if len(config.LocalizationFilename) <= 0 {
+    if len(config.LocalizationFile) <= 0 {
         Log.Warningf("No filename for localized string file set.")
     }
 
@@ -63,7 +63,7 @@ func (config *Configuration) LoadLocalizedStrings() error {
         file *os.File
         filePerm os.FileMode = 0640
     )
-    file, error = os.OpenFile(config.LocalizationFilename, os.O_RDONLY, filePerm)
+    file, error = os.OpenFile(config.LocalizationFile, os.O_RDONLY, filePerm)
     if error != nil {
         Log.Errorf("Can't open localized string file: %v.", error)
         return error

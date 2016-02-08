@@ -286,9 +286,9 @@ func (config *Configuration) ApplyConfiguration() error {
     //  Load localized strings --
 
     var error error = nil
-    if len(config.LocalizationFilename) > 0 {
+    if len(config.LocalizationFile) > 0 {
 
-        Log.Infof("Loading localized strings from %s.", config.LocalizationFilename)
+        Log.Infof("Loading localized strings from %s.", config.LocalizationFile)
 
         error = config.LoadLocalizedStrings()
         if error != nil {
@@ -400,7 +400,7 @@ func (config *Configuration) ServerStatusString() string {
     result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
         config.ServiceName,
         pinfo.PID,
-        time.Since(pinfo.StartTime).String(),
+        Util.HumanDuration(time.Since(pinfo.StartTime)),
         pinfo.CPUPercent,
         Util.HumanBytes(int64(pinfo.VMemory)),
         Util.HumanInt(int64(config.MessageCount)),
