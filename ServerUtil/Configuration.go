@@ -33,8 +33,6 @@ type Configuration struct {
     ServicePort     int
     ServiceFilePath string
     ServicePrefix   string
-    IsInDebugMode   bool
-    IsInProductionMode bool
     LogLevel        Log.LogLevelType
     LogFilename     string
     ServerURL       string
@@ -45,7 +43,7 @@ type Configuration struct {
     AppLinkScheme           string
     AppStoreURL             string
     ShortLinkURL            string
-    LocalizationFilename    string
+    LocalizationFile        string
     TemplatesPath           string
 
     Template                *template.Template
@@ -137,16 +135,6 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "debug-mode-on" {
-            configuration.IsInDebugMode, error = scanner.ScanBool()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "production-mode-on" {
-            configuration.IsInProductionMode, error = scanner.ScanBool()
-            if error != nil { return error }
-            continue
-        }
         if identifier == "web-log" {
             configuration.WebLog, error = scanner.ScanNext()
             if error != nil { return error }
@@ -192,8 +180,8 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "localization-filename" {
-            configuration.LocalizationFilename, error = scanner.ScanString()
+        if identifier == "localization-file" {
+            configuration.LocalizationFile, error = scanner.ScanString()
             if error != nil { return error }
             continue
         }
