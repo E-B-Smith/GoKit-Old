@@ -220,9 +220,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             continue
         }
-        if identifier == "app-link-redirect-url" ||
-           identifier == "client-app-min-version" ||
-           identifier == "client-app-min-data-date" {
+        if identifier == "app-link-redirect-url"    ||
+           identifier == "client-app-min-version"   ||
+           identifier == "client-app-min-data-date" ||
+           identifier == "debug-mode-on"            ||
+           identifier == "production-mode-on"{
             Log.Warningf("'%s' is deprecated.", identifier)
             if identifier == "client-app-min-data-date" {
                 scanner.ScanTimestamp()
@@ -562,6 +564,10 @@ func (config *Configuration) DisconnectDatabase() {
     config.DB = nil
 }
 
+
+func (config *Configuration) DatabaseIsConnected() bool {
+    return (config.PGSQL != nil)
+}
 
 
 //----------------------------------------------------------------------------------------
