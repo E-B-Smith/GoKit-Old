@@ -28,6 +28,8 @@ var (
 
 
 func SendSMS(toNumber string, message string) error {
+    Log.LogFunctionName()
+
     //  Send a Twilio message to a phone number.
 
     if twilioEncodedAuth == "" {
