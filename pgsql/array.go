@@ -23,7 +23,7 @@ import (
 
 func NullStringFromStringArray(ary []string) sql.NullString {
     if len(ary) == 0 {
-        Log.Debugf("NULL")
+        Log.Debugf("NULL returned for empty string.")
         return sql.NullString {}
     }
 
@@ -53,25 +53,33 @@ func StringArrayFromString(s *string) []string {
 
 
 func StringArrayFromNullString(nullstring sql.NullString) []string {
+
+    array := make([]string, 0, 10)
+
     if ! nullstring.Valid {
-        Log.Debugf("NULL")
-        return *new([]string)
+        Log.Debugf("NULL returned for empty string.")
+        return array
     }
 
     Log.Debugf("Input: |%s|.", nullstring.String)
 
-    array := make([]string, 0, 10)
-    scanner := Scanner.NewStringScanner(strings.Trim(nullstring.String, "{}"))
+    scanner := Scanner.NewStringScanner(strings.Trim(nullstring.String, "{} "))
     for ! scanner.IsAtEnd() {
-        s, _ := scanner.ScanSQLString();
-        if s == "NULL" {
-            s = ""
+        s, error := scanner.ScanSQLString();
+        if error != nil { Log.LogError(error) }
+
+        if len(s) > 0 {
+            if s == "NULL" { s = "" }
+            Log.Debugf("Adding %s", s)
+            array = append(array, s)
         }
-        array = append(array, s)
+
         scanner.ScanSpaces()
-        c, _ := scanner.ScanString()   //  Should be a comma or nothing.
-        if ! (c == "," || c == "") {
-            panic(fmt.Errorf("Mal-formed postgres string array. Found '%s'.", c))
+        c := scanner.NextRune()   //  Should be a comma or nothing.
+        Log.Debugf("Sep is '%c' At end: %t Token: '%s'.", c, scanner.IsAtEnd(), scanner.Token())
+        if ! (c == ',' || c == 0) {
+            panic(fmt.Errorf("Mal-formed postgres string array. Input was: '%s'. Error at '%s'.",
+                nullstring.String, c))
         }
     }
 
