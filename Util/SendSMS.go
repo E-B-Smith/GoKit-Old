@@ -7,7 +7,7 @@ package Util
 
 
 import (
-    "errors"
+    "fmt"
     "strings"
     "io/ioutil"
     "net/url"
@@ -59,28 +59,24 @@ func SendSMS(toNumber string, message string) error {
         Log.Warningf("SMS response error: %v.", error)
         return error
     }
-
-    //Log.Debugf("Response body: %s.", string(body))
+    Log.Debugf("Response body: %s.", string(body))
 
     type TwilioResponse struct {
-        code float64
-        detail string
+        Code    float64
+        Message string
+        Status  float64
     }
-    var response map[string]interface{}
-    error = json.Unmarshal(body, &response)
-    //Log.Debugf("%v", response)
-    if error != nil {
-        Log.Errorf("SMS response error: %v.", error)
-        return error
+    var twilioResponse TwilioResponse
+    error = json.Unmarshal(body, &twilioResponse)
+    if error != nil { return error }
+
+    Log.Debugf("%+v", twilioResponse)
+    if twilioResponse.Code != 0 {
+        Log.Errorf("SMS response error: %s.", string(body))
+        return fmt.Errorf("%f %+v", twilioResponse.Code, twilioResponse.Message)
     }
 
-    if  response["code"] != nil {
-        Log.Errorf("SMS error %1.0f: %s", response["code"], response["detail"])
-        error = errors.New(message)
-    } else {
-        Log.Debugf("Sent SMS OK.")
-    }
-
+    Log.Debugf("Sent SMS OK.")
     return error
 }
 

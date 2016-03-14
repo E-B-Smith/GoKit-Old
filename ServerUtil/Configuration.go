@@ -38,6 +38,8 @@ type Configuration struct {
     ServerURL       string
     WebLog          string
 
+    TestingEnabled  bool
+
     AppName                 string
     AppLinkURL              string
     AppLinkScheme           string
@@ -217,6 +219,11 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         }
         if identifier == "pulses-are-free" {
             configuration.PulsesAreFree, error = scanner.ScanBool()
+            if error != nil { return error }
+            continue
+        }
+        if identifier == "testing-enabled" {
+            configuration.TestingEnabled, error = scanner.ScanBool()
             if error != nil { return error }
             continue
         }
