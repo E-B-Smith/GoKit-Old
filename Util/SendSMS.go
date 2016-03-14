@@ -64,7 +64,7 @@ func SendSMS(toNumber string, message string) error {
     type TwilioResponse struct {
         Code    float64
         Message string
-        Status  float64
+        Status  string
     }
     var twilioResponse TwilioResponse
     error = json.Unmarshal(body, &twilioResponse)
