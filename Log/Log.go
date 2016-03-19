@@ -25,27 +25,27 @@ import (
 
 type LogLevelType int
 const (
-    LevelInvalid LogLevelType = iota
-    LevelAll
-    LevelDebug
-    LevelStart
-    LevelExit
-    LevelInfo
-    LevelWarning
-    LevelError
+    LogLevelInvalid LogLevelType = iota
+    LogLevelAll
+    LogLevelDebug
+    LogLevelStart
+    LogLevelExit
+    LogLevelInfo
+    LogLevelWarning
+    LogLevelError
 )
 var levelNames = []string {
-    "LevelInvalid",
-    "LevelAll",
-    "LevelDebug",
-    "LevelStart",
-    "LevelExit",
-    "LevelInfo",
-    "LevelWarning",
-    "LevelError",
+    "LogLevelInvalid",
+    "LogLevelAll",
+    "LogLevelDebug",
+    "LogLevelStart",
+    "LogLevelExit",
+    "LogLevelInfo",
+    "LogLevelWarning",
+    "LogLevelError",
 }
 var (
-    LogLevel        LogLevelType    = LevelInfo
+    LogLevel        LogLevelType    = LogLevelInfo
     logWriter       io.WriteCloser  = os.Stderr
     LogTeeStderr    bool            = false
     logFilename     string          = ""
@@ -60,13 +60,13 @@ func LogLevelFromString(s string) LogLevelType {
             return LogLevelType(index)
         }
     }
-    return LevelInvalid
+    return LogLevelInvalid
 }
 
 
 func StringFromLogLevel(level LogLevelType) string {
-    if level < LevelInvalid || level > LevelError {
-        return levelNames[LevelInvalid]
+    if level < LogLevelInvalid || level > LogLevelError {
+        return levelNames[LogLevelInvalid]
     } else {
         return levelNames[level]
     }
@@ -249,8 +249,8 @@ func SetFilename(filename string) {
 func LogStackWithError(error interface{}) {
     trace := make([]byte, 1024)
     count := runtime.Stack(trace, true)
-    logRaw(LevelError, "Error '%v':\n", error)
-    logRaw(LevelError, "Stack of %d bytes: %s\n", count, trace)
+    logRaw(LogLevelError, "Error '%v':\n", error)
+    logRaw(LogLevelError, "Stack of %d bytes: %s\n", count, trace)
 }
 
 
@@ -300,7 +300,7 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
     }
 
     if logLevel < LogLevel { return }
-    if logLevel < LevelDebug || logLevel > LevelError { logLevel = LevelError }
+    if logLevel < LogLevelDebug || logLevel > LogLevelError { logLevel = LogLevelError }
 
     _, filename, linenumber, _ := runtime.Caller(2)
     filename = path.Base(filename)
@@ -322,11 +322,11 @@ func logRaw(logLevel LogLevelType, format string, args ...interface{}) {
 }
 
 
-func Debugf(format string, args ...interface{})          { logRaw(LevelDebug, format, args...) }
-func Startf(format string, args ...interface{})          { logRaw(LevelStart, format, args...) }
-func Exitf(format string, args ...interface{})           { logRaw(LevelExit, format, args...) }
-func Infof(format string, args ...interface{})           { logRaw(LevelInfo, format, args...) }
-func Warningf(format string, args ...interface{})        { logRaw(LevelWarning, format, args...) }
-func Errorf(format string, args ...interface{})          { logRaw(LevelError, format, args...) }
-func LogError(error error)                               { logRaw(LevelError, "%v.", error) }
+func Debugf(format string, args ...interface{})          { logRaw(LogLevelDebug, format, args...) }
+func Startf(format string, args ...interface{})          { logRaw(LogLevelStart, format, args...) }
+func Exitf(format string, args ...interface{})           { logRaw(LogLevelExit, format, args...) }
+func Infof(format string, args ...interface{})           { logRaw(LogLevelInfo, format, args...) }
+func Warningf(format string, args ...interface{})        { logRaw(LogLevelWarning, format, args...) }
+func Errorf(format string, args ...interface{})          { logRaw(LogLevelError, format, args...) }
+func LogError(error error)                               { logRaw(LogLevelError, "%v.", error) }
 

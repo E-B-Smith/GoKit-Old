@@ -155,7 +155,7 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
             if error != nil { return error }
             if strings.HasPrefix(s, "Log") { s = s[3:] }
             configuration.LogLevel = Log.LogLevelFromString(s)
-            if configuration.LogLevel == Log.LevelInvalid {
+            if configuration.LogLevel == Log.LogLevelInvalid {
                 return scanner.SetErrorMessage("Invalid log level")
             }
             continue
