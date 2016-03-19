@@ -153,7 +153,7 @@ func (configuration *Configuration) ParseFile(inputFile *os.File) error {
         if identifier == "log-level" {
             s, error := scanner.ScanNext()
             if error != nil { return error }
-            if strings.HasPrefix(s, "Log") { s = s[3:] }
+            //if strings.HasPrefix(s, "Log") { s = s[3:] }
             configuration.LogLevel = Log.LogLevelFromString(s)
             if configuration.LogLevel == Log.LogLevelInvalid {
                 return scanner.SetErrorMessage("Invalid log level")
