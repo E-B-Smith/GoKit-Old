@@ -33,18 +33,32 @@ type Configuration struct {
     ServicePort     int
     ServiceFilePath string
     ServicePrefix   string
-    LogLevel        Log.LogLevelType
-    LogFilename     string
     ServerURL       string
-    WebLog          string
 
     TestingEnabled  bool
+
+    //  Logging --
+
+    LogLevel        Log.LogLevelType
+    LogFilename     string
+    WebLog          string
+
+    //  Database --
+
+    DatabaseURI     string
+    PGSQL           *pgsql.PGSQL
+    DB              *sql.DB
+
+    //  For app deep links --
 
     AppName                 string
     AppLinkURL              string
     AppLinkScheme           string
     AppStoreURL             string
     ShortLinkURL            string
+
+    //  Locaization and templates --
+
     LocalizationFile        string
     TemplatesPath           string
 
@@ -57,17 +71,11 @@ type Configuration struct {
     EmailPassword       string  //  "*****"
     EmailSMTPServer     string  //  "smtp.gmail.com:587"
 
-    //  Database
-
-    DatabaseURI     string
-    PGSQL           *pgsql.PGSQL
-    DB              *sql.DB
-
     //  HappyPulse config
 
     PulsesAreFree       bool
 
-    //  Global info
+    //  Global server stats / info --
 
     MessageCount    int
     signalChannel   chan os.Signal
