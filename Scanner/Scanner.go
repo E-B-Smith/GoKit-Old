@@ -167,7 +167,7 @@ func (scanner *Scanner) ScanString() (next string, error error) {
 }
 
 
-func (scanner *Scanner) ScanInt() (int int, error error) {
+func (scanner *Scanner) ScanInt64() (int int64, error error) {
     scanner.ScanSpaces()
     var r rune
     r, _, scanner.error = scanner.reader.ReadRune()
@@ -186,7 +186,39 @@ func (scanner *Scanner) ScanInt() (int int, error error) {
     scanner.reader.UnreadRune()
 
     scanner.token = buffer.String()
-    return  strconv.Atoi(scanner.token)
+    var i int64
+    i, scanner.error = strconv.ParseInt(scanner.token, 10, 64)
+    return i, scanner.error
+}
+
+
+func (scanner *Scanner) ScanInt32() (int int32, error error) {
+    i, error := scanner.ScanInt64()
+    return int32(i), error
+}
+
+func (scanner *Scanner) ScanInt() (int, error) {
+    i64, error := scanner.ScanInt64()
+    return int(i64), error
+}
+
+
+func (scanner *Scanner) ScanFloat64() (float64, error) {
+    scanner.ScanSpaces()
+
+    var r rune
+    var buffer bytes.Buffer
+    r, _, scanner.error = scanner.reader.ReadRune()
+    for scanner.error == nil && (unicode.IsDigit(r) || r == '-' || r == '.') {
+        buffer.WriteRune(r)
+        r, _, scanner.error = scanner.reader.ReadRune()
+    }
+    scanner.reader.UnreadRune()
+
+    scanner.token = buffer.String()
+    var f float64
+    f, scanner.error = strconv.ParseFloat(scanner.token, 64)
+    return f, scanner.error
 }
 
 
@@ -293,7 +325,7 @@ func (scanner *Scanner) ScanNext() (next string, error error) {
     }
     if unicode.IsDigit(r) {
         scanner.reader.UnreadRune()
-        scanner.ScanInt()
+        scanner.ScanInt64()
         return scanner.token, scanner.error
     }
 

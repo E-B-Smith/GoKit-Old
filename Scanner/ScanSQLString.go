@@ -73,3 +73,4 @@ func (scanner *Scanner) NextRune() rune {
     r, _, scanner.error = scanner.reader.ReadRune()
     return r
 }
+

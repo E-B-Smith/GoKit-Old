@@ -28,6 +28,7 @@ import (
 
 
 type Configuration struct {
+
     SoftwareVersion string
     ServiceName     string
     ServicePort     int
@@ -40,6 +41,7 @@ type Configuration struct {
     //  Logging --
 
     LogLevel        Log.LogLevelType
+    LogTeeStderr    bool
     LogFilename     string
     WebLog          string
 
