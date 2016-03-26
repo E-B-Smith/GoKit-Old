@@ -7,7 +7,6 @@ package ServerUtil
 
 
 import (
-    "io"
     "os"
     "fmt"
     "net"
@@ -18,293 +17,47 @@ import (
     "strings"
     "syscall"
     "os/signal"
-    "database/sql"
     "html/template"
-    "violent.blue/GoKit/Log"
     "violent.blue/GoKit/Util"
     "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
+    "violent.blue/GoKit/Log"
 )
 
 
-type Configuration struct {
-
-    SoftwareVersion string
-    ServiceName     string
-    ServicePort     int
-    ServiceFilePath string
-    ServicePrefix   string
-    ServerURL       string
-
-    TestingEnabled  bool
-
-    //  Logging --
-
-    LogLevel        Log.LogLevelType
-    LogTeeStderr    bool
-    LogFilename     string
-    WebLog          string
-
-    //  Database --
-
-    DatabaseURI     string
-    PGSQL           *pgsql.PGSQL
-    DB              *sql.DB
-
-    //  For app deep links --
-
-    AppName                 string
-    AppLinkURL              string
-    AppLinkScheme           string
-    AppStoreURL             string
-    ShortLinkURL            string
-
-    //  Locaization and templates --
-
-    LocalizationFile        string
-    TemplatesPath           string
-
-    Template                *template.Template
-
-    //  Email
-
-    EmailAddress        string  //  "beinghappy@beinghappy.io"
-    EmailAccount        string  //  "beinghappy@beinghappy.io"
-    EmailPassword       string  //  "*****"
-    EmailSMTPServer     string  //  "smtp.gmail.com:587"
-
-    //  HappyPulse config
-
-    PulsesAreFree       bool
-
-    //  Global server stats / info --
-
-    MessageCount    int
-    signalChannel   chan os.Signal
-}
-
-
-/*
-func (config *Configuration) ServiceURL() string {
-    if config.ServerPort == 80 || config.ServerPort == 0 {
-        return config.HostURL + config.ServicePrefix
-    } else {
-        return fmt.Sprintf("%s:%d%s", config.HostURL, config.ServerPort, config.ServicePrefix)
-    }
-}
-*/
-
-
-func (config *Configuration) ServiceURL() string {
-    return config.ServerURL + config.ServicePrefix
-}
-
-
-
 //----------------------------------------------------------------------------------------
-//                                                                      ParseConfiguration
+//                                                              Open / Close Configuration
 //----------------------------------------------------------------------------------------
 
 
-func (configuration *Configuration) ParseFile(inputFile *os.File) error {
+func (config *Configuration) OpenConfig() error {
+    Log.LogFunctionName()
     var error error
-    scanner := Scanner.NewFileScanner(inputFile)
-    for !scanner.IsAtEnd() {
-        //Log.Debugf("Token: '%s'.", scanner.Token())
 
-        var identifier string
-        identifier, error = scanner.ScanIdentifier()
-        //Log.Debugf("Scanned '%s'.", scanner.Token())
+    //  Set up logging --
 
-        if error == io.EOF {
-            return nil
-        }
-        if error != nil {
-            return error
-        }
-        if identifier == "service-name" {
-            configuration.ServiceName, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "service-port" {
-            configuration.ServicePort, error = scanner.ScanInt()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "service-file-path" {
-            configuration.ServiceFilePath, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "service-prefix" {
-            configuration.ServicePrefix, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "database-uri" {
-            configuration.DatabaseURI, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "web-log" {
-            configuration.WebLog, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "log-level" {
-            s, error := scanner.ScanNext()
-            if error != nil { return error }
-            //if strings.HasPrefix(s, "Log") { s = s[3:] }
-            configuration.LogLevel = Log.LogLevelFromString(s)
-            if configuration.LogLevel == Log.LogLevelInvalid {
-                return scanner.SetErrorMessage("Invalid log level")
-            }
-            continue
-        }
-        if identifier == "log-name" {
-            configuration.LogFilename, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "server-url" {
-            configuration.ServerURL, error = scanner.ScanNext()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "app-link-url" {
-            configuration.AppLinkURL, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "app-link-scheme" {
-            configuration.AppLinkScheme, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "app-name" {
-            configuration.AppName, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "short-link-url" {
-            configuration.ShortLinkURL, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "localization-file" {
-            configuration.LocalizationFile, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "app-store-url" {
-            configuration.AppStoreURL, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "templates-path" {
-            configuration.TemplatesPath, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "email-account" {
-            configuration.EmailAccount, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "email-password" {
-            configuration.EmailPassword, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "email-address" {
-            configuration.EmailAddress, error = scanner.ScanQuotedString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "email-smtp-server" {
-            configuration.EmailSMTPServer, error = scanner.ScanString()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "pulses-are-free" {
-            configuration.PulsesAreFree, error = scanner.ScanBool()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "testing-enabled" {
-            configuration.TestingEnabled, error = scanner.ScanBool()
-            if error != nil { return error }
-            continue
-        }
-        if identifier == "app-link-redirect-url"    ||
-           identifier == "client-app-min-version"   ||
-           identifier == "client-app-min-data-date" ||
-           identifier == "debug-mode-on"            ||
-           identifier == "production-mode-on"{
-            Log.Warningf("'%s' is deprecated.", identifier)
-            if identifier == "client-app-min-data-date" {
-                scanner.ScanTimestamp()
-            } else {
-                scanner.ScanString()
-            }
-            continue
-        }
-        return scanner.SetErrorMessage("Configuration identifier expected")
+    Log.LogLevel = config.LogLevel
+    Log.SetFilename(config.LogFilename)
+    Log.LogTeeStderr = config.LogTeeStderr
+
+    //  Set our pid file --
+
+    if error = config.CreatePIDFile(); error != nil {
+        return error
     }
 
-    //  Check the config for basic correctness --
+    //  Set our path --
 
-    if configuration.ServicePort == 0 { configuration.ServicePort = 80 }
-
-    if  len(configuration.ServiceName) == 0     ||
-        len(configuration.ServiceFilePath) == 0 ||
-        len(configuration.ServicePrefix) == 0   ||
-        len(configuration.DatabaseURI) == 0     ||
-        len(configuration.ServerURL) == 0 {
-        return errors.New("Missing config parameters")
+    if error = os.Chdir(config.ServiceFilePath); error != nil {
+        Log.Errorf("Error setting the home path '%s': %v.", config.ServiceFilePath, error)
+        return error
+    } else {
+        config.ServiceFilePath, _ = os.Getwd()
+        Log.Debugf("Working directory: '%s'", config.ServiceFilePath)
     }
-
-    //  Done --
-
-    return error
-}
-
-
-func (config *Configuration) ParseFilename(filename string) error {
-    inputFile, error := os.Open(filename)
-    if error != nil {
-        return fmt.Errorf("Error: Can't open file '%s' for reading: %v.", filename, error)
-    }
-    defer inputFile.Close()
-    error = config.ParseFile(inputFile)
-    if error != nil { return error }
-    //Log.Debugf("Parsed configuration: %v.", config)
-    return nil
-}
-
-
-func UnescapeString(args ...interface{}) string {
-    Log.Debugf("UnescapeString:")
-    Log.Debugf("%+v", args...)
-    ok := false
-    var s string
-    if len(args) == 1 {
-        s, ok = args[0].(string)
-        s = html.UnescapeString(s)
-    }
-    if !ok {
-        s = fmt.Sprint(args...)
-    }
-    return s
-}
-
-
-func (config *Configuration) ApplyConfiguration() error {
 
     //  Load localized strings --
 
-    var error error = nil
     if len(config.LocalizationFile) > 0 {
 
         Log.Infof("Loading localized strings from %s.", config.LocalizationFile)
@@ -334,7 +87,39 @@ func (config *Configuration) ApplyConfiguration() error {
         }
     }
 
+    //  Open the database --
+
+    if error = config.ConnectDatabase(); error != nil {
+        return error
+    }
+
     return nil
+}
+
+
+
+func (config *Configuration) CloseConfig() {
+    Log.LogFunctionName()
+    config.DisconnectDatabase()
+    config.DetachFromInterrupts()
+    config.RemovePIDFile()
+}
+
+
+//  For use in template files
+func UnescapeString(args ...interface{}) string {
+    Log.Debugf("UnescapeString:")
+    Log.Debugf("%+v", args...)
+    ok := false
+    var s string
+    if len(args) == 1 {
+        s, ok = args[0].(string)
+        s = html.UnescapeString(s)
+    }
+    if !ok {
+        s = fmt.Sprint(args...)
+    }
+    return s
 }
 
 
@@ -464,7 +249,7 @@ func ProcessCommands(config *Configuration, connection net.Conn) {
                 case "hello":
                     _, error = connection.Write([]byte(">>> Hello.\n"))
                 case "version":
-                    s := fmt.Sprintf(">>> Software version %s.\n", config.SoftwareVersion)
+                    s := fmt.Sprintf(">>> Software version %s.\n", CompileVersion())
                     _, error = connection.Write([]byte(s))
                 case "status":
                     s := fmt.Sprintf("%s.\n", config.ServerStatusString())
@@ -527,7 +312,9 @@ func (config *Configuration) AttachToInterrupts(httpListener net.Listener) {
     //  Set up an interrupt handler --
     config.signalChannel = make(chan os.Signal, 1)
     signal.Notify(config.signalChannel,
-        syscall.SIGHUP, syscall.SIGINT, syscall.SIGKILL, syscall.SIGUSR1, syscall.SIGTERM)
+        syscall.SIGHUP, syscall.SIGINT,
+        syscall.SIGKILL, syscall.SIGUSR1,
+        syscall.SIGTERM)
     go func() {
         for signal := range config.signalChannel {
             fmt.Fprintf(os.Stderr, "Signal %v\n", signal)
@@ -540,7 +327,6 @@ func (config *Configuration) AttachToInterrupts(httpListener net.Listener) {
             }
         }
     } ()
-    //  Now start our TCP command channel --
     config.StartTCPCommandChannel()
 }
 
@@ -559,11 +345,11 @@ func (config *Configuration) DetachFromInterrupts() {
 
 
 func (config *Configuration) ConnectDatabase() error {
-    Log.Infof("Starting database %s.", config.DatabaseURI)
+    Log.Infof("Starting database %s.", config.DatabaseURL)
     var error error
-    config.PGSQL, error = pgsql.ConnectDatabase(config.DatabaseURI)
+    config.PGSQL, error = pgsql.ConnectDatabase(config.DatabaseURL)
     if error != nil {
-        Log.Errorf("Can't open database '%s':\n%v.", config.DatabaseURI, error)
+        Log.Errorf("Can't open database '%s':\n%v.", config.DatabaseURL, error)
         return error
     }
     pgsql.EnableInfiniteTime()
@@ -574,7 +360,7 @@ func (config *Configuration) ConnectDatabase() error {
 
 func (config *Configuration) DisconnectDatabase() {
     if config.PGSQL != nil {
-        Log.Debugf("Stopping database %s.", config.DatabaseURI)
+        Log.Debugf("Stopping database %s.", config.DatabaseURL)
         config.PGSQL.DisconnectDatabase()
     }
     config.PGSQL = nil
@@ -584,17 +370,5 @@ func (config *Configuration) DisconnectDatabase() {
 
 func (config *Configuration) DatabaseIsConnected() bool {
     return (config.PGSQL != nil)
-}
-
-
-//----------------------------------------------------------------------------------------
-//                                                                                   Close
-//----------------------------------------------------------------------------------------
-
-
-func (config *Configuration) Close() {
-    Log.Debugf("Cleaning up config.")
-    config.DisconnectDatabase()
-    config.RemovePIDFile()
 }
 

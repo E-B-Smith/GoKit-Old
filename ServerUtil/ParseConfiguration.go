@@ -21,8 +21,83 @@ import (
     "reflect"
     "strings"
     "unicode"
+    "database/sql"
+    "html/template"
+    "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
+    "violent.blue/GoKit/Log"
 )
+
+
+type Configuration struct {
+
+    ServiceName     string
+    ServicePort     int
+    ServiceFilePath string
+    ServicePrefix   string
+    ServerURL       string
+
+    TestingEnabled  bool
+
+    //  Logging --
+
+    LogLevel        Log.LogLevelType `enum:"LogLevelInvalid,LogLevelAll,LogLevelDebug,LogLevelStart,LogLevelExit,LogLevelInfo,LogLevelWarning,LogLevelError"`
+    LogTeeStderr    bool
+    LogFilename     string
+
+    //  Database --
+
+    DatabaseURL     string
+    PGSQL           *pgsql.PGSQL
+    DB              *sql.DB
+
+    //  For app deep links --
+
+    AppName                 string
+    AppLinkURL              string
+    AppLinkScheme           string
+    AppStoreURL             string
+    ShortLinkURL            string
+
+    //  Locaization and templates --
+
+    LocalizationFile        string
+    TemplatesPath           string
+
+    Template                *template.Template
+
+    //  Email
+
+    EmailAddress        string  //  "beinghappy@beinghappy.io"
+    EmailAccount        string  //  "beinghappy@beinghappy.io"
+    EmailPassword       string  //  "*****"
+    EmailSMTPServer     string  //  "smtp.gmail.com:587"
+
+    //  HappyPulse config
+
+//  PulsesAreFree       bool
+
+    //  Global server stats / info --
+
+    MessageCount    int
+    signalChannel   chan os.Signal
+}
+
+
+//----------------------------------------------------------------------------------------
+//                                                                     CompileTime/Version
+//----------------------------------------------------------------------------------------
+
+
+var compileVersion              string = "0.0.0"
+var compileTime                 string = "Sun Mar 6 09:01:25 PST 2016"
+
+func CompileVersion() string    { return compileVersion }
+func CompileTime() string       { return compileTime }
+
+func (config *Configuration) ServiceURL() string {
+    return config.ServerURL + config.ServicePrefix
+}
 
 
 //----------------------------------------------------------------------------------------
@@ -30,20 +105,20 @@ import (
 //----------------------------------------------------------------------------------------
 
 
-func (config *Configuration) ParseFilename2(filename string) error {
+func (config *Configuration) ParseConfigFileNamed(filename string) error {
     inputFile, error := os.Open(filename)
     if error != nil {
         return fmt.Errorf("Error: Can't open file '%s' for reading: %v.", filename, error)
     }
     defer inputFile.Close()
-    error = config.ParseFile(inputFile)
+    error = config.ParseConfigFile(inputFile)
     if error != nil { return error }
     //Log.Debugf("Parsed configuration: %v.", config)
     return nil
 }
 
 
-func (config *Configuration) ParseFile2(inputFile *os.File) error {
+func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
 
     //  Set some default values --
 
@@ -53,7 +128,6 @@ func (config *Configuration) ParseFile2(inputFile *os.File) error {
 
     configStructPtrValue := reflect.ValueOf(config)
     configStructValue := configStructPtrValue.Elem()
-    configStructType  := configStructPtrValue.Type()
 
     scanner := Scanner.NewFileScanner(inputFile)
     for !scanner.IsAtEnd() {
@@ -79,7 +153,7 @@ func (config *Configuration) ParseFile2(inputFile *os.File) error {
         if ! field.IsValid() {
             return scanner.SetErrorMessage("Configuration identifier expected")
         }
-        structField, _ := configStructType.FieldByName(fieldName)
+        structField, _ := configStructValue.Type().FieldByName(fieldName)
 
         var (
             i int64
@@ -123,7 +197,7 @@ func (config *Configuration) ParseFile2(inputFile *os.File) error {
             field.SetFloat(f)
 
         case reflect.String:
-            s, error = scanner.ScanString()
+            s, error = scanner.ScanNext()
             if error != nil { return error }
             field.SetString(s)
 
@@ -148,7 +222,6 @@ func (config *Configuration) ParseFile2(inputFile *os.File) error {
 
     checkValidValue("ServiceName")
 
-
 /*
         len(config.ServiceFilePath) == 0 ||
         len(config.ServicePrefix) == 0   ||
@@ -157,6 +230,7 @@ func (config *Configuration) ParseFile2(inputFile *os.File) error {
         return errors.New("Missing config parameter:")
     }
 */
+
     //  Done --
 
     config.MessageCount = 0
