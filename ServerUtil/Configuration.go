@@ -40,6 +40,14 @@ func (config *Configuration) OpenConfig() error {
     Log.SetFilename(config.LogFilename)
     Log.LogTeeStderr = config.LogTeeStderr
 
+    Log.Startf("%s version %s pid %d compiled %s.",
+        config.ServiceName,
+        CompileVersion(),
+        os.Getpid(),
+        CompileTime(),
+    )
+    Log.Debugf("Configuration: %+v.", config)
+
     //  Set our pid file --
 
     if error = config.CreatePIDFile(); error != nil {
