@@ -206,41 +206,38 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
         }
     }
 
-    //  Check for basic correctness --
+    //  Check for basic values --
 
-    checkValidValue := func(name string) error {
+    var err error
+
+    checkNotZero := func(name string) {
         fieldValue := config.ValueByName(name)
         if fieldValue.IsValid() {
             if fieldValue.Type().Kind() == reflect.String {
-                if fieldValue.String() != "" { return nil }
+                if fieldValue.String() != "" { return }
             } else {
-                if fieldValue.Int() != 0 { return nil }
+                if fieldValue.Int() != 0 { return }
             }
         }
-        return fmt.Errorf("Missing config parameter: %s", name)
+        if err != nil { err = fmt.Errorf("Missing config parameter: %s", name) }
     }
 
-    checkValidValue("ServiceName")
 
-/*
-        len(config.ServiceFilePath) == 0 ||
-        len(config.ServicePrefix) == 0   ||
-        len(config.DatabaseURI) == 0     ||
-        len(config.ServerURL) == 0 {
-        return errors.New("Missing config parameter:")
-    }
-*/
+    config.MessageCount = 0
+    checkNotZero("ServiceName")
+    checkNotZero("ServiceFilePath")
+    checkNotZero("ServicePrefix")
+    checkNotZero("DatabaseURI")
+    checkNotZero("ServerURL")
 
     //  Done --
 
-    config.MessageCount = 0
-    return nil
+    return err
 }
 
 
 func (config *Configuration) ValueByName(name string) reflect.Value {
-    valueConfig := reflect.ValueOf(config)
-    return valueConfig.FieldByName(name)
+    return reflect.ValueOf(config).Elem().FieldByName(name)
 }
 
 
