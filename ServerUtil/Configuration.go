@@ -1,382 +1,332 @@
-//  Configuration  -  Parse the configuration file.
+
+
+//----------------------------------------------------------------------------------------
 //
-//  E.B.Smith  -  March, 2015
+//                                                                        Configuration.go
+//                                                  ServerUtil: Basic API server utilities
+//
+//                                                                   E.B.Smith, March 2016
+//                        -©- Copyright © 2015-2016 Edward Smith, all rights reserved. -©-
+//
+//----------------------------------------------------------------------------------------
 
 
 package ServerUtil
 
 
 import (
+    "io"
     "os"
     "fmt"
-    "net"
-    "time"
-    "html"
-    "path"
-    "errors"
+    "reflect"
     "strings"
-    "syscall"
-    "os/signal"
+    "unicode"
+    "database/sql"
     "html/template"
-    "violent.blue/GoKit/Util"
     "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
     "violent.blue/GoKit/Log"
 )
 
 
-//----------------------------------------------------------------------------------------
-//                                                              Open / Close Configuration
-//----------------------------------------------------------------------------------------
+type Configuration struct {
 
+    ServiceName     string
+    ServicePort     int
+    ServiceFilePath string
+    ServicePrefix   string
+    ServerURL       string
 
-func (config *Configuration) OpenConfig() error {
-    Log.LogFunctionName()
-    var error error
+    TestingEnabled  bool
 
-    //  Set up logging --
+    //  Logging --
 
-    Log.LogLevel = config.LogLevel
-    Log.SetFilename(config.LogFilename)
-    Log.LogTeeStderr = config.LogTeeStderr
+    LogLevel        Log.LogLevelType `enum:"LogLevelInvalid,LogLevelAll,LogLevelDebug,LogLevelStart,LogLevelExit,LogLevelInfo,LogLevelWarning,LogLevelError"`
+    LogTeeStderr    bool
+    LogFilename     string
 
-    Log.Startf("%s version %s pid %d compiled %s.",
-        config.ServiceName,
-        CompileVersion(),
-        os.Getpid(),
-        CompileTime(),
-    )
-    Log.Debugf("Configuration: %+v.", config)
+    //  Database --
 
-    //  Set our pid file --
+    DatabaseURL     string
+    PGSQL           *pgsql.PGSQL
+    DB              *sql.DB
 
-    if error = config.CreatePIDFile(); error != nil {
-        return error
-    }
+    //  For app deep links --
 
-    //  Set our path --
+    AppName                 string
+    AppLinkURL              string
+    AppLinkScheme           string
+    AppStoreURL             string
+    ShortLinkURL            string
 
-    if error = os.Chdir(config.ServiceFilePath); error != nil {
-        Log.Errorf("Error setting the home path '%s': %v.", config.ServiceFilePath, error)
-        return error
-    } else {
-        config.ServiceFilePath, _ = os.Getwd()
-        Log.Debugf("Working directory: '%s'", config.ServiceFilePath)
-    }
+    //  Locaization and templates --
 
-    //  Load localized strings --
+    LocalizationFile        string
+    TemplatesPath           string
 
-    if len(config.LocalizationFile) > 0 {
+    Template                *template.Template
 
-        Log.Infof("Loading localized strings from %s.", config.LocalizationFile)
+    //  Email
 
-        error = config.LoadLocalizedStrings()
-        if error != nil {
-            error = fmt.Errorf("Can't open localization file: %v.", error)
-            return error
-        }
-    }
+    EmailAddress        string  //  "beinghappy@beinghappy.io"
+    EmailAccount        string  //  "beinghappy@beinghappy.io"
+    EmailPassword       string  //  "*****"
+    EmailSMTPServer     string  //  "smtp.gmail.com:587"
 
-    //  Load templates --
+    //  HappyPulse config
 
-    if len(config.TemplatesPath) > 0 {
+//  PulsesAreFree       bool
 
-        Log.Infof("Loading templates from %s.", config.TemplatesPath)
+    //  Global server stats / info --
 
-        path := config.TemplatesPath+"/*"
-
-        config.Template = template.New("Base")
-        config.Template = config.Template.Funcs(template.FuncMap{"unescapeString": UnescapeString})
-        config.Template, error = config.Template.ParseGlob(path)
-        if error != nil || config.Template == nil {
-            if error == nil { error = fmt.Errorf("No files.") }
-            error = fmt.Errorf("Can't parse template files: %v.", error)
-            return error
-        }
-    }
-
-    //  Open the database --
-
-    if error = config.ConnectDatabase(); error != nil {
-        return error
-    }
-
-    return nil
-}
-
-
-
-func (config *Configuration) CloseConfig() {
-    Log.LogFunctionName()
-    config.DisconnectDatabase()
-    config.DetachFromInterrupts()
-    config.RemovePIDFile()
-}
-
-
-//  For use in template files
-func UnescapeString(args ...interface{}) string {
-    Log.Debugf("UnescapeString:")
-    Log.Debugf("%+v", args...)
-    ok := false
-    var s string
-    if len(args) == 1 {
-        s, ok = args[0].(string)
-        s = html.UnescapeString(s)
-    }
-    if !ok {
-        s = fmt.Sprint(args...)
-    }
-    return s
+    MessageCount    int
+    signalChannel   chan os.Signal
 }
 
 
 //----------------------------------------------------------------------------------------
-//                                                              PID File Service Functions
+//                                                                     CompileTime/Version
 //----------------------------------------------------------------------------------------
 
 
-func (config *Configuration) PIDFileName() string {
-    name := "~/.run/" + config.ServiceName + ".pid"
-    name = Util.AbsolutePath(name)
-    return name
+var compileVersion              string = "0.0.0"
+var compileTime                 string = "Sun Mar 6 09:01:25 PST 2016"
+
+func CompileVersion() string    { return compileVersion }
+func CompileTime() string       { return compileTime }
+
+func (config *Configuration) ServiceURL() string {
+    return config.ServerURL + config.ServicePrefix
 }
 
 
-func (config *Configuration) CreatePIDFile() error {
-    //  Try to create the pid file.
-    //  -- On success, write pid to file.
-    //  -- On Failure, see if pid is still running.
-    //     If running, fail, else remove file and try again once.
+//----------------------------------------------------------------------------------------
+//                                                                      ParseConfiguration
+//----------------------------------------------------------------------------------------
 
-    var dirPerm  os.FileMode = 0750
-    var filePerm os.FileMode = 0640
 
-    filename := config.PIDFileName()
-    Log.Debugf("PID file: %s permissions: %d %o %x.", filename, dirPerm, dirPerm, dirPerm)
-    error := os.MkdirAll(path.Dir(filename), dirPerm)
+func (config *Configuration) ParseConfigFileNamed(filename string) error {
+    inputFile, error := os.Open(filename)
     if error != nil {
-        Log.Warningf("Can't create pid directory %s: %v.", filename, error)
-        return error
+        return fmt.Errorf("Error: Can't open file '%s' for reading: %v.", filename, error)
     }
-
-    // actualPerm, _ := os.Stat(path.Dir(filename))
-    // Log.Debugf("Dir: %s Perm: %o.", actualPerm.Name(), actualPerm.Mode())
-
-    file, error := os.OpenFile(filename, os.O_WRONLY | os.O_CREATE | os.O_EXCL, filePerm)
-    if error == nil {
-        pinfo, error := Util.GetProcessInfo(os.Getpid())
-        if error == nil {
-            fmt.Fprintf(file, "%d\t%s\n", pinfo.PID, pinfo.Command)
-            file.Close()
-            return nil
-        }
-    }
-    Log.Debugf("Can't create PID file: %v.", error)
-    file, error = os.OpenFile(filename, os.O_RDONLY, filePerm)
-    defer file.Close()
+    defer inputFile.Close()
+    error = config.ParseConfigFile(inputFile)
     if error != nil { return error }
-
-    scanner := Scanner.NewFileScanner(file)
-    pid, _ := scanner.ScanInt()
-    command, _ := scanner.ScanToEOL()
-    Log.Debugf("PID file contents: %d %s.", pid, command)
-
-    pinfo, error := Util.GetProcessInfo(pid)
-    if error != nil || pinfo.Command != command {
-        Log.Warningf("Removing old pid file...")
-        os.Remove(filename)
-        return config.CreatePIDFile()
-    }
-
-    return errors.New("Already running")
-}
-
-
-func (config *Configuration) RemovePIDFile() error {
-    //  Remove the pid file.
-    filename := config.PIDFileName()
-    Log.Debugf("Removing PID file %s.", filename)
-    return os.Remove(filename)
-}
-
-
-
-//----------------------------------------------------------------------------------------
-//                                                           TCP Command & Control Channel
-//----------------------------------------------------------------------------------------
-
-
-func (config *Configuration) ServerStatusString() string {
-    pinfo, _ := Util.GetProcessInfo(os.Getpid())
-    result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
-        config.ServiceName,
-        pinfo.PID,
-        Util.HumanDuration(time.Since(pinfo.StartTime)),
-        pinfo.CPUPercent,
-        Util.HumanBytes(int64(pinfo.VMemory)),
-        Util.HumanInt(int64(config.MessageCount)),
-    )
-    return result
-}
-
-
-func ProcessCommands(config *Configuration, connection net.Conn) {
-    //  Commands:  status | stop | help | hello | version
-    Log.LogFunctionName()
-    defer connection.Close()
-    Log.Infof("Accepted C&C connection from %s.", connection.RemoteAddr().String())
-    helpString := ">>> Commands: 'status', 'stop', 'restart', 'help', 'version'.\n"
-    var error error
-    timeout, error := time.ParseDuration("30s")
-    if error != nil { Log.Errorf("Error parsing duration: %v.", error) }
-
-    var commandBuffer string
-    buffer := make([]byte, 256)
-    for error == nil {
-        connection.SetDeadline(time.Now().Add(timeout))
-        var n int
-        n, error = connection.Read(buffer)
-        if n <= 0 && error != nil { break }
-        Log.Debugf("Read %d characters.", n)
-
-        commandBuffer += string(buffer[:n])
-        index := strings.Index(commandBuffer, "\n")
-        for index > -1 && error == nil {
-            command := strings.ToLower(commandBuffer[:index])
-            command  = strings.TrimSpace(command)
-            if index < len(commandBuffer)-1 {
-                commandBuffer = commandBuffer[index+1:]
-            } else {
-                commandBuffer = ""
-            }
-            index = strings.Index(commandBuffer, "\n")
-
-            Log.Infof("C&C command '%s'.", command)
-            switch command {
-                case "hello":
-                    _, error = connection.Write([]byte(">>> Hello.\n"))
-                case "version":
-                    s := fmt.Sprintf(">>> Software version %s.\n", CompileVersion())
-                    _, error = connection.Write([]byte(s))
-                case "status":
-                    s := fmt.Sprintf("%s.\n", config.ServerStatusString())
-                    _, error = connection.Write([]byte(s))
-                case "stop":
-                    _, error = connection.Write([]byte(">>> Stopping.\n"))
-                    myself, _ := os.FindProcess(os.Getpid())
-                    myself.Signal(syscall.SIGHUP)
-                case "", " ", "\n":
-                case "help", "?", "h":
-                    _, error = connection.Write([]byte(helpString))
-                default:
-                    message := fmt.Sprintf(">>> Unknown command '%s'.\n", command)
-                    _, error = connection.Write([]byte(message))
-                    if error != nil { break; }
-                    _, error = connection.Write([]byte(helpString))
-            }
-        }
-    }
-    if error != nil {
-        Log.Debugf("Connection closed with error %v.", error)
-    } else {
-        Log.Debugf("Connection closed without error.")
-    }
-}
-
-
-func (config *Configuration) StartTCPCommandChannel() {
-    //  Start listening for commands --
-    Log.LogFunctionName()
-    port := fmt.Sprintf("localhost:%d", config.ServicePort+1)
-    listener, error := net.Listen("tcp", port)
-    if error != nil {
-        Log.LogError(error)
-        return
-    }
-    go func() {
-        defer listener.Close()
-        Log.Infof("Listening for C&C connections on %s.", listener.Addr().String())
-        for {
-            connection, error := listener.Accept()
-            if error != nil {
-                Log.LogError(error)
-                break
-            } else {
-                go ProcessCommands(config, connection)
-            }
-        }
-    } ()
-}
-
-
-
-//----------------------------------------------------------------------------------------
-//                                                             Interrupt Handler Functions
-//----------------------------------------------------------------------------------------
-
-
-func (config *Configuration) AttachToInterrupts(httpListener net.Listener) {
-    //  Set up an interrupt handler --
-    config.signalChannel = make(chan os.Signal, 1)
-    signal.Notify(config.signalChannel,
-        syscall.SIGHUP, syscall.SIGINT,
-        syscall.SIGKILL, syscall.SIGUSR1,
-        syscall.SIGTERM)
-    go func() {
-        for signal := range config.signalChannel {
-            fmt.Fprintf(os.Stderr, "Signal %v\n", signal)
-            if signal == syscall.SIGUSR1 {
-                statusString := config.ServerStatusString()
-                Log.Infof("%s", statusString)
-            } else {
-                Log.Infof("Quit signal received.")
-                httpListener.Close()
-            }
-        }
-    } ()
-    config.StartTCPCommandChannel()
-}
-
-
-func (config *Configuration) DetachFromInterrupts() {
-    if config.signalChannel != nil {
-        signal.Stop(config.signalChannel)
-    }
-}
-
-
-
-//----------------------------------------------------------------------------------------
-//                                                                                Database
-//----------------------------------------------------------------------------------------
-
-
-func (config *Configuration) ConnectDatabase() error {
-    Log.Infof("Starting database %s.", config.DatabaseURL)
-    var error error
-    config.PGSQL, error = pgsql.ConnectDatabase(config.DatabaseURL)
-    if error != nil {
-        Log.Errorf("Can't open database '%s':\n%v.", config.DatabaseURL, error)
-        return error
-    }
-    pgsql.EnableInfiniteTime()
-    config.DB = config.PGSQL.DB
+    //Log.Debugf("Parsed configuration: %v.", config)
     return nil
 }
 
 
-func (config *Configuration) DisconnectDatabase() {
-    if config.PGSQL != nil {
-        Log.Debugf("Stopping database %s.", config.DatabaseURL)
-        config.PGSQL.DisconnectDatabase()
+func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
+
+    //  Set some default values --
+
+    config.ServicePort = 80
+
+    //  Start relecting --
+
+    configStructPtrValue := reflect.ValueOf(config)
+    configStructValue := configStructPtrValue.Elem()
+
+    scanner := Scanner.NewFileScanner(inputFile)
+    for !scanner.IsAtEnd() {
+        var error error
+
+        //Log.Debugf("Token: '%s'.", scanner.Token())
+
+        var identifier string
+        identifier, error = scanner.ScanIdentifier()
+        //Log.Debugf("Scanned '%s'.", scanner.Token())
+
+        if error == io.EOF {
+            break
+        }
+        if error != nil {
+            return error
+        }
+
+        //  Find the identifier --
+
+        fieldName := CamelCaseFromIdentifier(identifier)
+        field := configStructValue.FieldByName(fieldName)
+        if ! field.IsValid() {
+            return scanner.SetErrorMessage("Configuration identifier expected")
+        }
+        structField, _ := configStructValue.Type().FieldByName(fieldName)
+
+        var (
+            i int64
+            s string
+            b bool
+            f float64
+        )
+
+        switch field.Type().Kind() {
+
+        case reflect.Bool:
+            b, error = scanner.ScanBool()
+            if error != nil { return error }
+            field.SetBool(b)
+
+        case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+
+            enumValues := structField.Tag.Get("enum")
+            if len(enumValues) > 0 {
+
+                s, error = scanner.ScanNext()
+                if error != nil {
+                    scanner.SetError(error)
+                    return scanner.LastError()
+                }
+
+                i, error = enumFromString(s, enumValues)
+                if error != nil { return error }
+
+            } else {
+
+                i, error = scanner.ScanInt64()
+                if error != nil { return error }
+
+            }
+            field.SetInt(i)
+
+        case reflect.Float32, reflect.Float64:
+            f, error = scanner.ScanFloat64()
+            if error != nil { return error }
+            field.SetFloat(f)
+
+        case reflect.String:
+            s, error = scanner.ScanNext()
+            if error != nil { return error }
+            field.SetString(s)
+
+        default:
+            return fmt.Errorf("Error: '%s' unhandled type: %s", identifier, field.Type().Name())
+        }
     }
-    config.PGSQL = nil
-    config.DB = nil
+
+    //  Check for basic values --
+
+    var err error
+
+    checkNotZero := func(name string) {
+        fieldValue := config.ValueByName(name)
+        if fieldValue.IsValid() {
+            if fieldValue.Type().Kind() == reflect.String {
+                if fieldValue.String() != "" { return }
+            } else {
+                if fieldValue.Int() != 0 { return }
+            }
+        }
+        if err != nil { err = fmt.Errorf("Missing config parameter: %s", name) }
+    }
+
+
+    config.MessageCount = 0
+    checkNotZero("ServiceName")
+    checkNotZero("ServiceFilePath")
+    checkNotZero("ServicePrefix")
+    checkNotZero("DatabaseURI")
+    checkNotZero("ServerURL")
+
+    //  Done --
+
+    return err
 }
 
 
-func (config *Configuration) DatabaseIsConnected() bool {
-    return (config.PGSQL != nil)
+func (config *Configuration) ValueByName(name string) reflect.Value {
+    return reflect.ValueOf(config).Elem().FieldByName(name)
 }
+
+
+func enumFromString(s string, enumValues string) (int64, error) {
+
+    enumArray := make([]string, 0)
+    a := strings.Split(enumValues, ",")
+    for _, enum := range a {
+        enum = strings.TrimSpace(enum)
+        if len(enum) > 0 {
+            enumArray = append(enumArray, enum)
+        }
+    }
+
+    for i, val := range enumArray {
+        if val == s { return int64(i), nil }
+    }
+
+    return -1, fmt.Errorf("Invalid enum '%s'", s)
+}
+
+
+//----------------------------------------------------------------------------------------
+//                                                                 CamelCaseFromIdentifier
+//----------------------------------------------------------------------------------------
+
+
+//  Return possible Golang camel-case variations on the string.
+func CamelCaseFromIdentifier(s string) string {
+
+    lastWasUpper := false
+    words := make([]string, 0, 5)
+    var word []rune
+    for _, r := range s {
+
+        switch {
+
+        case r == '-' || r == '_':
+            words = append(words, string(word))
+            word = word[:0]
+            lastWasUpper = false
+
+        case unicode.IsUpper(r):
+            if ! lastWasUpper {
+                words = append(words, string(word))
+                word = word[:0]
+            }
+            word = append(word, r)
+            lastWasUpper = true
+
+        default:
+            word = append(word, r)
+            lastWasUpper = false
+        }
+    }
+    if len(word) > 0 {
+        words = append(words, string(word))
+    }
+
+
+    //  String together the parts.  Upper-case any special words:
+
+    upperWords := map[string]bool {
+        "http": true,
+        "https":true,
+        "url":  true,
+        "uri":  true,
+        "urn":  true,
+        "smtp": true,
+        "xml":  true,
+        "json": true,
+        "id":   true,
+    }
+
+    var camelString string
+    for _, part := range words {
+
+        part = strings.ToLower(part)
+        if _, ok := upperWords[part]; ok {
+            part = strings.ToUpper(part)
+        } else {
+            part = strings.Title(part)
+        }
+
+
+        camelString += part
+    }
+
+    return camelString
+}
+
 

@@ -1,6 +1,14 @@
-//  Log  -  Simple logging.
+
+
+//----------------------------------------------------------------------------------------
 //
-//  E.B.Smith  -  November, 2014
+//                                                                                  Log.go
+//                                                                 Log: Basic log services
+//
+//                                                                E.B.Smith, November 2014
+//                        -©- Copyright © 2014-2016 Edward Smith, all rights reserved. -©-
+//
+//----------------------------------------------------------------------------------------
 
 
 package Log

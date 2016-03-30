@@ -1,6 +1,14 @@
-//  ValidateAppleReceipt  -  Validate a receipt from an Apple in-app purchase.
+
+
+//----------------------------------------------------------------------------------------
 //
-//  E.B.Smith  -  December, 2015
+//                                                                         AppleReceipt.go
+//                                                  ServerUtil: Basic API server utilities
+//
+//                                                                E.B.Smith, December 2015
+//                        -©- Copyright © 2015-2016 Edward Smith, all rights reserved. -©-
+//
+//----------------------------------------------------------------------------------------
 
 
 package ServerUtil
