@@ -18,10 +18,11 @@ import (
     "os"
     "fmt"
     "net"
-    "time"
     "html"
     "path"
+    "time"
     "errors"
+    "runtime"
     "strings"
     "syscall"
     "os/signal"
@@ -217,11 +218,13 @@ func (config *Configuration) RemovePIDFile() error {
 
 func (config *Configuration) ServerStatusString() string {
     pinfo, _ := Util.GetProcessInfo(os.Getpid())
-    result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
+    result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Thr %d/%d Mem %s Messages: %s",
         config.ServiceName,
         pinfo.PID,
         Util.HumanDuration(time.Since(pinfo.StartTime)),
         pinfo.CPUPercent,
+        runtime.NumGoroutine(),
+        runtime.NumCPU(),
         Util.HumanBytes(int64(pinfo.VMemory)),
         Util.HumanInt(int64(config.MessageCount)),
     )
@@ -229,8 +232,8 @@ func (config *Configuration) ServerStatusString() string {
 }
 
 
-func ProcessCommands(config *Configuration, connection net.Conn) {
-    //  Commands:  status | stop | help | hello | version
+//  Process commands from the TCP pipe:  status | stop | help | hello | version
+func ProcessTCPCommands(config *Configuration, connection net.Conn) {
     Log.LogFunctionName()
     defer connection.Close()
     Log.Infof("Accepted C&C connection from %s.", connection.RemoteAddr().String())
@@ -311,7 +314,7 @@ func (config *Configuration) StartTCPCommandChannel() {
                 Log.LogError(error)
                 break
             } else {
-                go ProcessCommands(config, connection)
+                go ProcessTCPCommands(config, connection)
             }
         }
     } ()
@@ -327,10 +330,14 @@ func (config *Configuration) StartTCPCommandChannel() {
 func (config *Configuration) AttachToInterrupts(httpListener net.Listener) {
     //  Set up an interrupt handler --
     config.signalChannel = make(chan os.Signal, 1)
-    signal.Notify(config.signalChannel,
-        syscall.SIGHUP, syscall.SIGINT,
-        syscall.SIGKILL, syscall.SIGUSR1,
-        syscall.SIGTERM)
+    signal.Notify(
+        config.signalChannel,
+        syscall.SIGHUP,
+        syscall.SIGINT,
+        syscall.SIGKILL,
+        syscall.SIGUSR1,
+        syscall.SIGTERM,
+    )
     go func() {
         for signal := range config.signalChannel {
             fmt.Fprintf(os.Stderr, "Signal %v\n", signal)
