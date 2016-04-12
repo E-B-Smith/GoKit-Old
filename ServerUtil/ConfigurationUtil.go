@@ -21,12 +21,14 @@ import (
     "html"
     "path"
     "time"
+    "bytes"
     "errors"
     "runtime"
     "strings"
     "syscall"
     "os/signal"
     "html/template"
+    "runtime/pprof"
     "violent.blue/GoKit/Util"
     "violent.blue/GoKit/pgsql"
     "violent.blue/GoKit/Scanner"
@@ -232,12 +234,31 @@ func (config *Configuration) ServerStatusString() string {
 }
 
 
+func GetProfileNames() string {
+    s := "Profiles:\n"
+    profiles := pprof.Profiles()
+    for _, profile := range profiles {
+        s += profile.Name() + "\n"
+    }
+    return s
+}
+
+
+func GetGoprocs() string {
+    buffer := new(bytes.Buffer)
+    profile := pprof.Lookup("goroutine")
+    profile.WriteTo(buffer, 1)
+    s := "GoProcs:\n" + string(buffer.Bytes()) + "\n"
+    return s
+}
+
+
 //  Process commands from the TCP pipe:  status | stop | help | hello | version
 func ProcessTCPCommands(config *Configuration, connection net.Conn) {
     Log.LogFunctionName()
     defer connection.Close()
     Log.Infof("Accepted C&C connection from %s.", connection.RemoteAddr().String())
-    helpString := ">>> Commands: 'status', 'stop', 'restart', 'help', 'version'.\n"
+    helpString := ">>> Commands: 'status', 'stop', 'restart', 'help', 'version', 'profiles', 'goprocs'.\n"
     var error error
     timeout, error := time.ParseDuration("30s")
     if error != nil { Log.Errorf("Error parsing duration: %v.", error) }
@@ -272,6 +293,12 @@ func ProcessTCPCommands(config *Configuration, connection net.Conn) {
                     _, error = connection.Write([]byte(s))
                 case "status":
                     s := fmt.Sprintf("%s.\n", config.ServerStatusString())
+                    _, error = connection.Write([]byte(s))
+                case "profiles":
+                    s := GetProfileNames()
+                    _, error = connection.Write([]byte(s))
+                case "goprocs":
+                    s := GetGoprocs()
                     _, error = connection.Write([]byte(s))
                 case "stop":
                     _, error = connection.Write([]byte(">>> Stopping.\n"))
@@ -359,7 +386,6 @@ func (config *Configuration) DetachFromInterrupts() {
         signal.Stop(config.signalChannel)
     }
 }
-
 
 
 //----------------------------------------------------------------------------------------
