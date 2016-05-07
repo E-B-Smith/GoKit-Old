@@ -73,10 +73,6 @@ type Configuration struct {
     EmailPassword       string  //  "*****"
     EmailSMTPServer     string  //  "smtp.gmail.com:587"
 
-    //  HappyPulse config
-
-//  PulsesAreFree       bool
-
     //  Global server stats / info --
 
     MessageCount    int
@@ -127,17 +123,17 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
     //  Start relecting --
 
     configStructPtrValue := reflect.ValueOf(config)
+    Log.Debugf("Kind: %+v Value: %+v", configStructPtrValue.Kind(), configStructPtrValue)
     configStructValue := configStructPtrValue.Elem()
+    Log.Debugf("Kind: %+v Value: %+v", configStructValue.Kind(), configStructValue)
 
     scanner := Scanner.NewFileScanner(inputFile)
     for !scanner.IsAtEnd() {
         var error error
 
-        //Log.Debugf("Token: '%s'.", scanner.Token())
-
         var identifier string
         identifier, error = scanner.ScanIdentifier()
-        //Log.Debugf("Scanned '%s'.", scanner.Token())
+        Log.Debugf("Scanned '%s'.", scanner.Token())
 
         if error == io.EOF {
             break
@@ -149,6 +145,7 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
         //  Find the identifier --
 
         fieldName := CamelCaseFromIdentifier(identifier)
+        Log.Debugf("FieldName: '%s'.", fieldName)
         field := configStructValue.FieldByName(fieldName)
         if ! field.IsValid() {
             return scanner.SetErrorMessage("Configuration identifier expected")
