@@ -101,31 +101,31 @@ func (config *Configuration) ServiceURL() string {
 //----------------------------------------------------------------------------------------
 
 
-func (config *Configuration) ParseConfigFileNamed(filename string) error {
+func ParseConfigFileNamed(config interface{}, filename string) error {
     inputFile, error := os.Open(filename)
     if error != nil {
         return fmt.Errorf("Error: Can't open file '%s' for reading: %v.", filename, error)
     }
     defer inputFile.Close()
-    error = config.ParseConfigFile(inputFile)
+    error = ParseConfigFile(config, inputFile)
     if error != nil { return error }
     //Log.Debugf("Parsed configuration: %v.", config)
     return nil
 }
 
 
-func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
+func ParseConfigFile(config interface{}, inputFile *os.File) error {
 
-    //  Set some default values --
+    //  Parse the file, finding fields by reflection  --
 
-    config.ServicePort = 80
-
-    //  Start relecting --
-
-    configStructPtrValue := reflect.ValueOf(config)
-    Log.Debugf("Kind: %+v Value: %+v", configStructPtrValue.Kind(), configStructPtrValue)
-    configStructValue := configStructPtrValue.Elem()
-    Log.Debugf("Kind: %+v Value: %+v", configStructValue.Kind(), configStructValue)
+    configPtr := reflect.ValueOf(config)
+    if configPtr.Kind() != reflect.Ptr {
+        panic(fmt.Errorf("Pointer to struct expected"))
+    }
+    configPtrValue := reflect.ValueOf(config).Elem()
+    if configPtrValue.Kind() != reflect.Struct {
+        panic(fmt.Errorf("Pointer to struct expected"))
+    }
 
     scanner := Scanner.NewFileScanner(inputFile)
     for !scanner.IsAtEnd() {
@@ -145,12 +145,12 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
         //  Find the identifier --
 
         fieldName := CamelCaseFromIdentifier(identifier)
-        Log.Debugf("FieldName: '%s'.", fieldName)
-        field := configStructValue.FieldByName(fieldName)
+        //Log.Debugf("FieldName: '%s'.", fieldName)
+        field := configPtrValue.FieldByName(fieldName)
         if ! field.IsValid() {
             return scanner.SetErrorMessage("Configuration identifier expected")
         }
-        structField, _ := configStructValue.Type().FieldByName(fieldName)
+        structField, _ := configPtrValue.Type().FieldByName(fieldName)
 
         var (
             i int64
@@ -203,12 +203,12 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
         }
     }
 
-    //  Check for basic values --
+    //  Check & set basic values --
 
     var err error
 
     checkNotZero := func(name string) {
-        fieldValue := config.ValueByName(name)
+        fieldValue := configPtrValue.FieldByName(name)
         if fieldValue.IsValid() {
             if fieldValue.Type().Kind() == reflect.String {
                 if fieldValue.String() != "" { return }
@@ -219,9 +219,19 @@ func (config *Configuration) ParseConfigFile(inputFile *os.File) error {
         if err != nil { err = fmt.Errorf("Missing config parameter: %s", name) }
     }
 
+    setFieldNameToInt := func(name string, i int64) {
+        field := configPtrValue.FieldByName(name)
+        if field.IsValid() {
+            field.SetInt(i)
+        }
+    }
 
-    config.MessageCount = 0
+    //  Set some defaults --
+
+    setFieldNameToInt("MessageCount", 0)
+
     checkNotZero("ServiceName")
+    checkNotZero("ServicePort")
     checkNotZero("ServiceFilePath")
     checkNotZero("ServicePrefix")
     checkNotZero("DatabaseURI")
