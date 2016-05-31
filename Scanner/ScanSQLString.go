@@ -9,6 +9,7 @@ package Scanner
 import (
     "bytes"
     "errors"
+    //"violent.blue/GoKit/Log"
 )
 
 
@@ -21,7 +22,16 @@ func (scanner *Scanner) ScanSQLString() (string, error) {
         return "", scanner.error
     }
 
-    if r != '\'' {
+    switch r {
+
+    case '"':
+        scanner.reader.UnreadRune()
+        return scanner.ScanQuotedString()
+
+    case '\'':
+        break
+
+    default:
         scanner.reader.UnreadRune()
         return scanner.ScanString()
     }
@@ -55,5 +65,12 @@ func (scanner *Scanner) ScanSQLString() (string, error) {
     }
     scanner.token = buffer.String()
     return scanner.token, scanner.error
+}
+
+
+func (scanner *Scanner) NextRune() rune {
+    var r rune = 0
+    r, _, scanner.error = scanner.reader.ReadRune()
+    return r
 }
 

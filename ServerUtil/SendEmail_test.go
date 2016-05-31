@@ -1,6 +1,14 @@
-//  SendEmail  -  Send an Email using an existing account.
+
+
+//----------------------------------------------------------------------------------------
 //
-//  E.B.Smith  -  March, 2015
+//                                                                       SendEmail_test.go
+//                                                  ServerUtil: Basic API server utilities
+//
+//                                                                   E.B.Smith, March 2015
+//                        -©- Copyright © 2015-2016 Edward Smith, all rights reserved. -©-
+//
+//----------------------------------------------------------------------------------------
 
 
 package ServerUtil

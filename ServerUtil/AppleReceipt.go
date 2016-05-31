@@ -1,6 +1,14 @@
-//  ValidateAppleReceipt  -  Validate a receipt from an Apple in-app purchase.
+
+
+//----------------------------------------------------------------------------------------
 //
-//  E.B.Smith  -  December, 2015
+//                                                                         AppleReceipt.go
+//                                                  ServerUtil: Basic API server utilities
+//
+//                                                                E.B.Smith, December 2015
+//                        -©- Copyright © 2015-2016 Edward Smith, all rights reserved. -©-
+//
+//----------------------------------------------------------------------------------------
 
 
 package ServerUtil
@@ -9,8 +17,8 @@ package ServerUtil
 import (
     "fmt"
     "bytes"
-    "strconv"
     "net/http"
+    "io/ioutil"
     "encoding/json"
     "encoding/base64"
     "violent.blue/GoKit/Log"
@@ -22,7 +30,7 @@ import (
 //----------------------------------------------------------------------------------------
 
 
-func errorFromValidationStatus(status int) error {
+func errorFromValidationStatus(status int64) error {
     if status == 0 { return nil }
 
     s := ""
@@ -63,15 +71,14 @@ type AppleInAppReceipt struct {
 type AppleReceipt struct {
     BundleID                    string  `json:"bundle_id"`
     ApplicationVersion          string  `json:"application_version"`
-    InAppReceipts               []AppleInAppReceipt  `json:"in_app"`
     OriginalApplicationVersion  string  `json:"original_application_version"`
-    CreationDate                string  `json:"creation_date"`
-    ExpirationDate              string  `json:"expiration_date"`
+    OriginalPurchaseDateMS      string  `json:"original_purchase_date_ms"`
+    InAppReceipts               []AppleInAppReceipt  `json:"in_app"`
 }
 
 
 type AppleReceiptResponse struct {
-    Status              string
+    Status              int64
     Receipt             AppleReceipt
 }
 
@@ -105,6 +112,8 @@ func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (
         return nil, error
     }
     defer response.Body.Close()
+    appleJSONResponse, error := ioutil.ReadAll(response.Body)
+    Log.Debugf("Response: \n%s\n.", string(appleJSONResponse))
 
     if response.StatusCode != 200 {
         error = fmt.Errorf("Error HTTP Status %s.", response.Status)
@@ -113,19 +122,14 @@ func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (
     }
 
     var receiptResponse AppleReceiptResponse
-    decoder := json.NewDecoder(response.Body)
+    decoder := json.NewDecoder(bytes.NewReader(appleJSONResponse))
     error =  decoder.Decode(&receiptResponse)
     if error != nil {
         Log.LogError(error)
         return nil, error
     }
-    status, error := strconv.Atoi(receiptResponse.Status)
-    if error != nil {
-        Log.LogError(error)
-        return nil, error
-    }
-    if status != 0 {
-        error = errorFromValidationStatus(status)
+    if receiptResponse.Status != 0 {
+        error = errorFromValidationStatus(receiptResponse.Status)
         Log.LogError(error)
         return nil, error
     }
