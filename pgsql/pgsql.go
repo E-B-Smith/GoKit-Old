@@ -120,7 +120,7 @@ func RowsUpdated(result sql.Result) int64 {
 }
 
 
-func RowUpdateResultError(result sql.Result, error error) error {
+func UpdateResultError(result sql.Result, error error) error {
     if error != nil {
         return error
     }
