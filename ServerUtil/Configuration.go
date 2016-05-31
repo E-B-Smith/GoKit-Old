@@ -243,20 +243,6 @@ func ParseConfigFile(config interface{}, inputFile *os.File) error {
 }
 
 
-func (config *Configuration) ServerStatusString() string {
-    pinfo, _ := Util.GetProcessInfo(os.Getpid())
-    result := fmt.Sprintf("%s PID %d Elapsed %s CPU %1.1f%% Mem %s Messages: %s",
-        config.ServiceName,
-        pinfo.PID,
-        Util.HumanDuration(time.Since(pinfo.StartTime)),
-        pinfo.CPUPercent,
-        Util.HumanBytes(int64(pinfo.VMemory)),
-        Util.HumanInt(int64(config.MessageCount)),
-    )
-    return result
-}
-
-
 func (config *Configuration) ValueByName(name string) reflect.Value {
     return reflect.ValueOf(config).Elem().FieldByName(name)
 }
