@@ -113,6 +113,11 @@ func CloseRows(rows *sql.Rows)  {
 }
 
 
+type RowScanner interface {
+    Scan(dest ...interface{}) error
+}
+
+
 func RowsUpdated(result sql.Result) int64 {
     var rowsUpdated int64 = 0
     if result != nil { rowsUpdated, _ = result.RowsAffected() }
