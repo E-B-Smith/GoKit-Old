@@ -15,6 +15,7 @@ import (
 )
 
 
+//  Returns the user's home directory
 func HomePath() string {
     homepath := ""
     u, error := user.Current()
@@ -27,6 +28,7 @@ func HomePath() string {
 }
 
 
+//  Like the regular AbsolutePath but adds home directory if indicated.
 func AbsolutePath(filename string) string {
     filename = strings.TrimSpace(filename)
     if  filepath.HasPrefix(filename, "~") {
