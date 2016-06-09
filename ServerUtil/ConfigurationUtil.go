@@ -53,9 +53,9 @@ func (config *Configuration) OpenConfig() error {
 
     Log.Startf("%s version %s pid %d compiled %s.",
         config.ServiceName,
-        CompileVersion(),
+        Util.CompileVersion(),
         os.Getpid(),
-        CompileTime(),
+        Util.CompileTime(),
     )
     Log.Debugf("Configuration: %+v.", config)
 
@@ -212,6 +212,10 @@ func (config *Configuration) RemovePIDFile() error {
 }
 
 
+func (config *Configuration) ServiceURL() string {
+    return config.ServerURL + config.ServicePrefix
+}
+
 
 //----------------------------------------------------------------------------------------
 //                                                           TCP Command & Control Channel
@@ -290,7 +294,7 @@ func ProcessTCPCommands(config *Configuration, connection net.Conn) {
                 case "hello":
                     _, error = connection.Write([]byte(">>> Hello.\n"))
                 case "version":
-                    s := fmt.Sprintf(">>> Software version %s.\n", CompileVersion())
+                    s := fmt.Sprintf(">>> Software version %s.\n", Util.CompileVersion())
                     _, error = connection.Write([]byte(s))
                 case "status":
                     s := fmt.Sprintf("%s.\n", config.ServerStatusString())
@@ -347,7 +351,6 @@ func (config *Configuration) StartTCPCommandChannel() {
         }
     } ()
 }
-
 
 
 //----------------------------------------------------------------------------------------
