@@ -56,7 +56,7 @@ func TestCleanupPath(t *testing.T) {
     }
 
     for _, test := range tests {
-        result := CleanupPath(test.testin)
+        result := AbsolutePath(test.testin)
         if false { fmt.Printf("%s\t\t%s\n", result, test.testout) }
         if result != test.testout {
             t.Errorf("Got %s but want %s.", result, test.testout)

@@ -15,7 +15,7 @@ package Util
 
 
 var compileVersion              string = "0.0.0"
-var compileTime                 string = "Sun Mar 6 09:01:25 PST 2016"
+var compileTime                 string = "Compile time not set"
 
 func CompileVersion() string    { return compileVersion }
 func CompileTime() string       { return compileTime }

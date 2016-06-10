@@ -30,7 +30,7 @@ func StringArraysEqual(a []string, b []string) bool {
 
 
 func Test_ReadStringArrayFromDB(t *testing.T) {
-    Log.LogLevel = Log.LevelAll
+    Log.LogLevel = Log.LogLevelAll
 
     sa := StringArrayFromNullString(sql.NullString {})
     if len(sa) != 0 {
@@ -64,7 +64,7 @@ func Test_ReadStringArrayFromDB(t *testing.T) {
     ta = []string { "Consulting offer", "New venture", "Sale leads" }
     sa = StringArrayFromNullString(sql.NullString { String: `{"Consulting offer","New venture","Sale leads"}`, Valid: true })
     if ! StringArraysEqual(sa, ta) {
-        t.Error("Expected: %v Got: %v", ta, sa)
+        t.Errorf("Expected: %v Got: %v", ta, sa)
     }
 
     //  {"Consulting offer","New venture","Sale leads"}

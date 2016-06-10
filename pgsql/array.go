@@ -78,7 +78,7 @@ func StringArrayFromNullString(nullstring sql.NullString) []string {
         c := scanner.NextRune()   //  Should be a comma or nothing.
         Log.Debugf("Sep is '%c' At end: %t Token: '%s'.", c, scanner.IsAtEnd(), scanner.Token())
         if ! (c == ',' || c == 0) {
-            panic(fmt.Errorf("Mal-formed postgres string array. Input was: '%s'. Error at '%s'.",
+            panic(fmt.Errorf("Mal-formed postgres string array. Input was: '%s'. Error at '%c'.",
                 nullstring.String, c))
         }
     }

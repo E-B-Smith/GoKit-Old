@@ -134,9 +134,9 @@ func ValidateAppleReceiptTransaction(receiptData []byte, transactionID string) (
         return nil, error
     }
 
-    for _, receipt := range receiptResponse.Receipt.InAppReceipts {
-        if receipt.TransactionID == transactionID {
-            return &receipt, nil
+    for _, inAppReceipt := range receiptResponse.Receipt.InAppReceipts {
+        if inAppReceipt.TransactionID == transactionID {
+            return &inAppReceipt, nil
         }
     }
 

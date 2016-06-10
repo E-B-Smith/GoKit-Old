@@ -15,7 +15,7 @@ package Log
 
 
 import (
-//    "os"
+    "os"
     "time"
     "testing"
     "path/filepath"
@@ -25,7 +25,7 @@ import (
 func TestLogRotation(t *testing.T) {
 
     LogTeeStderr = true
-    LogLevel = LevelAll
+    LogLevel = LogLevelAll
     LogRotationInterval = time.Second * 5
     SetFilename("Log/TestLog.log")
 
@@ -40,11 +40,11 @@ func TestLogRotation(t *testing.T) {
         t.Errorf("Expected 8 files, found %d.", len(logfiles))
     }
 
-    // for _, file := range logfiles {
-    //     error = os.Remove(file)
-    //     if error != nil {
-    //         t.Errorf("Can't remove log file '%s': %v.", file, error)
-    //     }
-    // }
+    for _, file := range logfiles {
+        error := os.Remove(file)
+        if error != nil {
+            t.Errorf("Can't remove log file '%s': %v.", file, error)
+        }
+    }
 }
 

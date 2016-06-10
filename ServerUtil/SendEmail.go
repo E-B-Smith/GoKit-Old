@@ -24,8 +24,8 @@ import (
 )
 
 
+//  Send an email --
 func (config Configuration) SendEmail(toAddress string, subject string, message string) error {
-    //  Send an email --
     Log.LogFunctionName()
 
 /*
