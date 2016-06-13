@@ -267,7 +267,7 @@ func ConnectDatabase(databaseURI string) (psql *PGSQL, error error) {
     }
 
     Log.Debugf("Connection string: %s.", connectString)
-    connectString = databaseURI //  eDebug
+    //connectString = databaseURI //  eDebug
     psql.DB, error = sql.Open("postgres", connectString)
     if error != nil {
         psql.DB = nil
