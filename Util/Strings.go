@@ -149,10 +149,10 @@ func HumanDuration(d time.Duration) string {
         s = fmt.Sprintf("%d days %d:%02d:%04.1f hours", dys, hrs, m, sec)
 
     case hrs > 0:
-        s = fmt.Sprintf("%d:%02d:%02.1f hours", hrs, m, sec)
+        s = fmt.Sprintf("%d:%02d:%04.1f hours", hrs, m, sec)
 
     case m > 0:
-        s = fmt.Sprintf("%d:%02.1f minutes", m, sec)
+        s = fmt.Sprintf("%d:%04.1f minutes", m, sec)
 
     default:
         s = fmt.Sprintf("%1.3f seconds", sec)
