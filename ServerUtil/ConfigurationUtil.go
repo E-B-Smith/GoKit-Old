@@ -224,7 +224,7 @@ func (config *Configuration) ServiceURL() string {
 
 func (config *Configuration) ServerStatusString() string {
     pinfo, _ := Util.GetProcessInfo(os.Getpid())
-    result := fmt.Sprintf("%s:%d PID %d Elapsed %s CPU %1.1f%% Thr %d/%d Mem %s Messages: %s",
+    result := fmt.Sprintf("%16s:%d PID %d Elapsed %s CPU %1.1f%% Thr %d/%d Mem %s Messages: %s",
         config.ServiceName,
         config.ServicePort,
         pinfo.PID,

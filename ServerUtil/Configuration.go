@@ -63,7 +63,6 @@ type Configuration struct {
 
     LocalizationFile        string
     TemplatesPath           string
-
     Template                *template.Template
 
     //  Email
