@@ -97,7 +97,11 @@ func (config *Configuration) OpenConfig() error {
         path := config.TemplatesPath+"/*"
 
         config.Template = template.New("Base")
-        config.Template = config.Template.Funcs(template.FuncMap{"unescapeString": UnescapeString})
+        config.Template = config.Template.Funcs(template.FuncMap{
+            "UnescapeHTMLString":   unescapeHTMLString,
+            "EscapeHTMLString":     escapeHTMLString,
+            "BoolPtr":              boolPtr,
+        })
         config.Template, error = config.Template.ParseGlob(path)
         if error != nil || config.Template == nil {
             if error == nil { error = fmt.Errorf("No files.") }
@@ -125,9 +129,9 @@ func (config *Configuration) CloseConfig() {
 }
 
 
-//  For use in template files
-func UnescapeString(args ...interface{}) string {
-    Log.Debugf("UnescapeString:")
+//  Un-escape an HTML string in a template
+func unescapeHTMLString(args ...interface{}) string {
+    Log.LogFunctionName()
     Log.Debugf("%+v", args...)
     ok := false
     var s string
@@ -139,6 +143,29 @@ func UnescapeString(args ...interface{}) string {
         s = fmt.Sprint(args...)
     }
     return s
+}
+
+//  Escape an HTML string in a template
+func escapeHTMLString(args ...interface{}) string {
+    Log.LogFunctionName()
+    Log.Debugf("%+v", args...)
+    ok := false
+    var s string
+    if len(args) == 1 {
+        s, ok = args[0].(string)
+        s = html.EscapeString(s)
+    }
+    if !ok {
+        s = fmt.Sprint(args...)
+    }
+    return s
+}
+
+
+//  Evaluate a boolean pointer in a template
+func boolPtr(b *bool) bool {
+    if b != nil && *b { return true }
+    return false
 }
 
 
