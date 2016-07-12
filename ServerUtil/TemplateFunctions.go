@@ -70,6 +70,12 @@ func boolPtr(b *bool) bool {
 }
 
 
+func stringPtr(s *string) string {
+    if s == nil { return "" }
+    return *s
+}
+
+
 const kMonthYearFormat string = "1/2006"
 
 

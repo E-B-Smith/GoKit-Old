@@ -32,6 +32,13 @@ func CleanStringPtr(s *string) *string {
 }
 
 
+func CleanStringPtrFromString(s string) *string {
+    s = strings.TrimSpace(s)
+    if len(s) == 0 { return nil }
+    return &s
+}
+
+
 func StringIncludingCharactersInSet(inputstring string, characterset string) string {
     return strings.Map(
         func(r rune) rune {

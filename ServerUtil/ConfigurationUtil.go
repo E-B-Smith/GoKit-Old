@@ -100,6 +100,7 @@ func (config *Configuration) OpenConfig() error {
             "UnescapeHTMLString":   unescapeHTMLString,
             "EscapeHTMLString":     escapeHTMLString,
             "BoolPtr":              boolPtr,
+            "StringPtr":            stringPtr,
             "MonthYearString":      MonthYearStringFromEpochPtr,
         })
         config.Template, error = config.Template.ParseGlob(path)
