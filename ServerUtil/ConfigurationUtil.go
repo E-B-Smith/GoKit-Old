@@ -18,7 +18,6 @@ import (
     "os"
     "fmt"
     "net"
-    "html"
     "path"
     "time"
     "bytes"
@@ -101,6 +100,7 @@ func (config *Configuration) OpenConfig() error {
             "UnescapeHTMLString":   unescapeHTMLString,
             "EscapeHTMLString":     escapeHTMLString,
             "BoolPtr":              boolPtr,
+            "MonthYearString":      MonthYearStringFromEpochPtr,
         })
         config.Template, error = config.Template.ParseGlob(path)
         if error != nil || config.Template == nil {
@@ -120,52 +120,11 @@ func (config *Configuration) OpenConfig() error {
 }
 
 
-
 func (config *Configuration) CloseConfig() {
     Log.LogFunctionName()
     config.DisconnectDatabase()
     config.DetachFromInterrupts()
     config.RemovePIDFile()
-}
-
-
-//  Un-escape an HTML string in a template
-func unescapeHTMLString(args ...interface{}) string {
-    Log.LogFunctionName()
-    Log.Debugf("%+v", args...)
-    ok := false
-    var s string
-    if len(args) == 1 {
-        s, ok = args[0].(string)
-        s = html.UnescapeString(s)
-    }
-    if !ok {
-        s = fmt.Sprint(args...)
-    }
-    return s
-}
-
-//  Escape an HTML string in a template
-func escapeHTMLString(args ...interface{}) string {
-    Log.LogFunctionName()
-    Log.Debugf("%+v", args...)
-    ok := false
-    var s string
-    if len(args) == 1 {
-        s, ok = args[0].(string)
-        s = html.EscapeString(s)
-    }
-    if !ok {
-        s = fmt.Sprint(args...)
-    }
-    return s
-}
-
-
-//  Evaluate a boolean pointer in a template
-func boolPtr(b *bool) bool {
-    if b != nil && *b { return true }
-    return false
 }
 
 
