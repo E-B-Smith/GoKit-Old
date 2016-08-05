@@ -83,6 +83,9 @@ func ValidatedEmailAddress(inputstring string) (string, error) {
 
 func ValidatedPhoneNumber(inputstring string) (string, error) {
     inputstring = StringIncludingCharactersInSet(inputstring, "0123456789")
+    if utf8.RuneCountInString(inputstring) > 10 {
+        inputstring = strings.TrimLeft(inputstring, "1")
+    }
     if utf8.RuneCountInString(inputstring) != 10 {
         return "", errors.New("Invalid phone number")
     } else {
