@@ -92,9 +92,12 @@ func (config *Configuration) OpenConfig() error {
     if len(config.TemplatesPath) > 0 {
 
         Log.Infof("Loading templates from %s.", config.TemplatesPath)
+        // if _, error := os.Stat(config.TemplatesPath); os.IsNotExist(error) {
+        //     Log.Infof("No template directory.  Skipping templates.")
+        //     return nil
+        // }
 
         path := config.TemplatesPath+"/*"
-
         config.Template = template.New("Base")
         config.Template = config.Template.Funcs(template.FuncMap{
             "UnescapeHTMLString":   unescapeHTMLString,

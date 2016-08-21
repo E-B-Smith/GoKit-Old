@@ -130,12 +130,16 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     //  Auth & send email --
 
     auth := smtp.PlainAuth("", config.EmailAccount, config.EmailPassword, SMTPServer)
-    Log.Debugf("Send account: '%s' send server: '%s'.", config.EmailAccount, SMTPServer)
+    Log.Debugf("Send account: '%s' send server: '%s' To: '%s'.",
+        config.EmailAccount,
+        SMTPServer,
+        toAddress,
+    )
 
     error = client.Auth(auth)
     checkError(error)
 
-    error = client.Mail(config.EmailAccount)
+    error = client.Mail(rawFromAddress)
     checkError(error)
 
     error = client.Rcpt(toAddress)
