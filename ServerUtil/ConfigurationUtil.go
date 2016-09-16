@@ -18,7 +18,6 @@ import (
     "os"
     "fmt"
     "net"
-    "html"
     "path"
     "time"
     "bytes"
@@ -97,7 +96,13 @@ func (config *Configuration) OpenConfig() error {
         path := config.TemplatesPath+"/*"
 
         config.Template = template.New("Base")
-        config.Template = config.Template.Funcs(template.FuncMap{"unescapeString": UnescapeString})
+        config.Template = config.Template.Funcs(template.FuncMap{
+            "UnescapeHTMLString":   unescapeHTMLString,
+            "EscapeHTMLString":     escapeHTMLString,
+            "BoolPtr":              boolPtr,
+            "StringPtr":            stringPtr,
+            "MonthYearString":      MonthYearStringFromEpochPtr,
+        })
         config.Template, error = config.Template.ParseGlob(path)
         if error != nil || config.Template == nil {
             if error == nil { error = fmt.Errorf("No files.") }
@@ -116,29 +121,11 @@ func (config *Configuration) OpenConfig() error {
 }
 
 
-
 func (config *Configuration) CloseConfig() {
     Log.LogFunctionName()
     config.DisconnectDatabase()
     config.DetachFromInterrupts()
     config.RemovePIDFile()
-}
-
-
-//  For use in template files
-func UnescapeString(args ...interface{}) string {
-    Log.Debugf("UnescapeString:")
-    Log.Debugf("%+v", args...)
-    ok := false
-    var s string
-    if len(args) == 1 {
-        s, ok = args[0].(string)
-        s = html.UnescapeString(s)
-    }
-    if !ok {
-        s = fmt.Sprint(args...)
-    }
-    return s
 }
 
 

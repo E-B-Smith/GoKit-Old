@@ -8,6 +8,7 @@ package pgsql
 
 import (
     "fmt"
+    "time"
     "strings"
     "strconv"
     "database/sql"
@@ -17,7 +18,14 @@ import (
 
 
 //----------------------------------------------------------------------------------------
+//
 //                                                                                  Arrays
+//
+//----------------------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------------------------------
+//                                                                                 Strings
 //----------------------------------------------------------------------------------------
 
 
@@ -89,6 +97,11 @@ func StringArrayFromNullString(nullstring sql.NullString) []string {
 }
 
 
+//----------------------------------------------------------------------------------------
+//                                                                                   Int32
+//----------------------------------------------------------------------------------------
+
+
 func StringFromInt32Array(ary []int32) string {
     if len(ary) == 0 {
         return "{}"
@@ -114,6 +127,11 @@ func Int32ArrayFromString(s *string) []int32 {
     }
     return a
 }
+
+
+//----------------------------------------------------------------------------------------
+//                                                                                 Float64
+//----------------------------------------------------------------------------------------
 
 
 func Float64ArrayFromNullString(s *sql.NullString) []float64 {
@@ -142,5 +160,45 @@ func StringFromFloat64Array(ary []float64) string {
     }
     result += "}"
     return result
+}
+
+
+//----------------------------------------------------------------------------------------
+//                                                                                    time
+//----------------------------------------------------------------------------------------
+
+
+func TimeArrayFromNullString(s *sql.NullString) []time.Time {
+    if s == nil || !s.Valid {
+        return *new([]time.Time)
+    }
+
+    const kFormat = "2006-01-02 15:04:05-07" // "2016-08-08 22:30:00+00" <>  "2006-01-02T15:04:05Z07:00"
+    Log.Debugf("Parsing '%s'.", s.String)
+
+    a := make([]time.Time, 0, 10)
+    str := strings.Trim(s.String, "{}")
+    for _, ss := range strings.Split(str, ",") {
+        ss = strings.Trim(ss, " \"")
+        t, error := time.Parse(kFormat, ss)
+        if error == nil { a = append(a, t) }
+    }
+
+    Log.Debugf("Returned %d items.", len(a))
+    return a
+}
+
+
+func NullStringFromTimeArray(ary []time.Time) sql.NullString {
+    if len(ary) == 0 {
+        return sql.NullString {}
+    }
+
+    var result string = "{"+ary[0].Format(time.RFC3339Nano)
+    for i:=1; i < len(ary); i++ {
+        result += ","+ary[i].Format(time.RFC3339Nano)
+    }
+    result += "}"
+    return sql.NullString { Valid: true, String: result }
 }
 

@@ -32,6 +32,13 @@ func CleanStringPtr(s *string) *string {
 }
 
 
+func CleanStringPtrFromString(s string) *string {
+    s = strings.TrimSpace(s)
+    if len(s) == 0 { return nil }
+    return &s
+}
+
+
 func StringIncludingCharactersInSet(inputstring string, characterset string) string {
     return strings.Map(
         func(r rune) rune {
@@ -76,6 +83,9 @@ func ValidatedEmailAddress(inputstring string) (string, error) {
 
 func ValidatedPhoneNumber(inputstring string) (string, error) {
     inputstring = StringIncludingCharactersInSet(inputstring, "0123456789")
+    if utf8.RuneCountInString(inputstring) > 10 {
+        inputstring = strings.TrimLeft(inputstring, "1")
+    }
     if utf8.RuneCountInString(inputstring) != 10 {
         return "", errors.New("Invalid phone number")
     } else {
