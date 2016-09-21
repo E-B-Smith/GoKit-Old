@@ -89,7 +89,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     //  Now connect with the server using TLS --
 
     tlsconfig := &tls.Config {
-        InsecureSkipVerify: true,   //  eDebug -- Remove for production.
+        // InsecureSkipVerify: true,   //  eDebug -- Remove for production.
         ServerName:         SMTPServer,
     }
 
