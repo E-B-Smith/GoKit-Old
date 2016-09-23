@@ -67,7 +67,7 @@ type Configuration struct {
 
     //  Email
 
-    EmailAddress        string  //  "beinghappy@beinghappy.io"
+    EmailFromAddress    string  //  "beinghappy@beinghappy.io"
     EmailAccount        string  //  "beinghappy@beinghappy.io"
     EmailPassword       string  //  "*****"
     EmailSMTPServer     string  //  "smtp.gmail.com:587"

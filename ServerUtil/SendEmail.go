@@ -34,7 +34,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
 
     /*
     Uses:
-        config.EmailAddress         "Blitz <blitz@blitzhere.com>"
+        config.EmailFromAddress     "Blitz <blitz@blitzhere.com>"
         config.EmailAccount         blitz@blitzhere.com
         config.EmailPassword        *****
         config.EmailSMPTServer      smtp.gmail.com:587
@@ -55,6 +55,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
 
     checkError := func(error error) {
         if error != nil {
+            Log.Errorf("Panic with error: %+v.", error)
             Log.LogStackWithError(error)
             panic(error)
         }
@@ -75,13 +76,13 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     rexp, error = regexp.Compile("<(.*?)>")
     checkError(error)
 
-    rawFromAddress := config.EmailAddress
+    rawFromAddress := config.EmailFromAddress
     fromArray := rexp.FindAllString(rawFromAddress, -1)
     if len(fromArray) > 0 {
         rawFromAddress = fromArray[0]
         rawFromAddress = strings.Trim(rawFromAddress, " <>")
     }
-    Log.Debugf("From full: '%s' address: '%s'.", config.EmailAddress, rawFromAddress)
+    Log.Debugf("Full from address: '%s' Raw address: '%s'.", config.EmailFromAddress, rawFromAddress)
 
     toAddress, error = Util.ValidatedEmailAddress(toAddress)
     checkError(error)
@@ -101,7 +102,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     if tlsDial {
 
         var connection *tls.Conn
-        Log.Debugf("Connecting to '%s'.", config.EmailSMTPServer)
+        Log.Debugf("TLS Connection to '%s'.", config.EmailSMTPServer)
         connection, error = tls.Dial("tcp", config.EmailSMTPServer, tlsconfig)
         checkError(error)
 
@@ -111,12 +112,14 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     } else {
 
         var connection net.Conn
+        Log.Debugf("Connecting to '%s'.", config.EmailSMTPServer)
         connection, error = net.Dial("tcp", config.EmailSMTPServer)
         checkError(error)
 
         client, error = smtp.NewClient(connection, SMTPServer)
         checkError(error)
 
+        Log.Debugf("Starting TLS.")
         error = client.StartTLS(tlsconfig)
         checkError(error)
 
@@ -124,11 +127,21 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
 
     defer func(client *smtp.Client) {
         error := client.Quit()
-        if error != nil { Log.LogError(error) }
+        if error != nil {
+            if strings.HasPrefix(error.Error(), "250 2.0.0 OK") {
+                error = nil
+                Log.Debugf("Email sent.")
+            } else {
+                Log.LogError(error)
+            }
+        } else {
+            Log.Debugf("Email sent.")
+        }
     } (client)
 
     //  Auth & send email --
 
+    Log.Debugf("Auth '%s' / '%s'", config.EmailAccount, config.EmailPassword)
     auth := smtp.PlainAuth("", config.EmailAccount, config.EmailPassword, SMTPServer)
     Log.Debugf("Send account: '%s' send server: '%s' To: '%s'.",
         config.EmailAccount,
@@ -139,6 +152,7 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     error = client.Auth(auth)
     checkError(error)
 
+    Log.Debugf("From: %s", rawFromAddress)
     error = client.Mail(rawFromAddress)
     checkError(error)
 
@@ -149,10 +163,16 @@ func (config Configuration) SendEmail(toAddress string, subject string, message 
     writer, error = client.Data()
     checkError(error)
 
-    message = fmt.Sprintf("Subject: %s\n\n%s\n", subject, message)
+    message = fmt.Sprintf("Subject: %s\nFrom: %s\n\n%s\n",
+        subject,
+        config.EmailFromAddress,
+        message,
+    )
+    //Log.Debugf("Message: '%s'.", message)
     _, error = writer.Write([]byte(message))
     checkError(error)
 
+    Log.Debugf("Email sent.  Confirming...")
     return error
 }
 
